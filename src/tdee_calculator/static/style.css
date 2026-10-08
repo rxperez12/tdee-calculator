@@ -15,3 +15,99 @@ main {
 h1 {
   margin-bottom: 0.5rem;
 }
+
+h2 {
+  margin-top: 2rem;
+}
+
+.entry-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  gap: 1rem;
+}
+
+.field {
+  flex: 1 1 9rem;
+  min-width: 0;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+input, button {
+  box-sizing: border-box;
+  font: inherit;
+  padding: 0.6rem;
+}
+
+input {
+  width: 100%;
+}
+
+button {
+  cursor: pointer;
+}
+
+.entry-form > button {
+  margin-top: 1.6rem;
+}
+
+.error {
+  color: light-dark(#a12616, #ffab9e);
+}
+
+.field .error {
+  font-size: 0.9rem;
+  margin: 0.4rem 0 0;
+}
+
+.notice {
+  padding: 0.75rem;
+  border-inline-start: 3px solid currentColor;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th, td {
+  text-align: left;
+  padding: 0.6rem 0.4rem;
+  border-bottom: 1px solid light-dark(#ccc, #555);
+}
+
+.number {
+  text-align: right;
+}
+
+.actions {
+  white-space: nowrap;
+}
+
+.actions form {
+  display: inline;
+  margin-left: 0.4rem;
+}
+
+.actions button {
+  padding: 0.3rem 0.5rem;
+}
+
+@media (max-width: 30rem) {
+  main {
+    margin: 2rem auto;
+  }
+
+  .entry-form > button {
+    margin-top: 0;
+  }
+}
