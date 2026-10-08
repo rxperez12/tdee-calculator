@@ -39,6 +39,7 @@ pyproject.toml                  # edit: sqlalchemy, alembic, httpx (dev)
 src/tdee_calculator/
   __init__.py                   # edit: main() backs up, starts uvicorn, opens the browser
   config.py                     # new: settings from environment variables
+  clock.py                      # new: now() / today(), local time
   models.py                     # new: Base, Entry, Setting
   db.py                         # new: folders, engine, migrations, backup, prepare()
   app.py                        # new: FastAPI app factory, lifespan, "/" route
@@ -118,8 +119,8 @@ class Entry(Base):
     weight_kg: Mapped[float | None]
     calories: Mapped[int | None]
     source: Mapped[str] = mapped_column(default="manual", server_default="manual")
-    created_at: Mapped[datetime.datetime] = mapped_column(default=utcnow)
-    updated_at: Mapped[datetime.datetime] = mapped_column(default=utcnow, onupdate=utcnow)
+    created_at: Mapped[datetime.datetime] = mapped_column(default=clock.now)
+    updated_at: Mapped[datetime.datetime] = mapped_column(default=clock.now, onupdate=clock.now)
 
 class Setting(Base):
     __tablename__ = "settings"
@@ -130,8 +131,12 @@ class Setting(Base):
 - `Mapped[float | None]` makes a column nullable; `Mapped[float]` makes it `NOT NULL`.
 - SQLAlchemy's `Date` and `DateTime` types store ISO strings in SQLite, so the file stays
   readable with the `sqlite3` CLI and you get real `date` objects in Python.
-- `utcnow` is a small helper returning `datetime.now(UTC)`. Keep timestamps in UTC; the
-  entry `date` is your local calendar day, which is what you want.
+- **Time is local, everywhere.** `clock.py` (`clock.now()`, `clock.today()`) is the
+  only place the app reads the current time. It returns naive local datetimes, because
+  the app runs on your machine and its clock and time zone are taken as correct. That
+  matches the entry `date` (your local calendar day), what SQLite stores and returns
+  (no time zone), and the backup filenames. Don't call `datetime.now()` or
+  `date.today()` anywhere else.
 - Settings stay a key/value table for now, as in the requirements. Milestone 4 decides
   whether to keep that or switch to typed columns, which is a cheap migration either way.
 

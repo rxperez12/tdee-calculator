@@ -52,6 +52,10 @@ Milestone 2 has no dependencies and can be done any time before 5.
   writers, multiple app servers, or managed hosting. Because access goes through
   SQLAlchemy and Alembic, switching later is mostly a connection-string change plus a
   one-time data copy. To keep that cheap: no raw SQLite-specific SQL outside `db.py`.
+- **Local time everywhere.** The app runs on your machine, so its clock and time zone
+  are treated as correct. Timestamps, entry dates, and backup filenames all use naive
+  local time from `clock.py`, the only module that reads the clock. Revisit (store UTC
+  and convert for display) only if the app is ever hosted for users in other time zones.
 
 ## Nice-to-haves (after v1)
 
