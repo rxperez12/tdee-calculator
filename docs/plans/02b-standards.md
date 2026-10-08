@@ -152,7 +152,7 @@ Rules for every test:
   and app layers.
 - Exception: when the order of steps *is* the behavior under test, a focused unit test
   can replace internal steps with recorders. Example: `test_main.py` checks that
-  `prepare` (backup + migrate) runs before the server starts.
+  `prepare` (backup) runs before the server starts; migrations run in the app lifespan.
 - Use fixed dates and isolated fixtures. Never touch the real `data/` directory, and
   don't depend on test order.
 - A bug fix comes with a regression test that fails without the fix.
@@ -224,3 +224,35 @@ The entry milestone must include real-database route tests for:
 - saving an existing date (updates, doesn't duplicate),
 - deleting an entry,
 - rejecting an invalid submission **without changing what's saved**.
+
+## Implementation status
+
+- [x] Ruff formatting and lint rules, including CSV parameter names to match existing tests.
+- [x] Branch coverage configuration and measured baseline.
+- [x] Executable `check.sh`, using locked dependencies for every check.
+- [x] Strict mypy on `src/`, with behavior-preserving math narrowing and route typing.
+- [x] Coverage floor of 98%; no coverage exclusions.
+- [x] Testing standards and shared `AGENTS.md` / `CLAUDE.md` instructions.
+- [x] GitHub Actions workflow and roadmap link.
+
+Baseline before additional coverage tests: 130 tests passing, 98.60% combined
+statement/branch coverage (304 statements, 54 branch exits; 3 statements and 2
+branch exits missing). The gaps were browser fallback/thread startup and the trivial
+`clock.today()` wrapper. Added deterministic tests for fallback output and browser
+thread startup; no app behavior changed. The math type refactor passed all 115
+existing calculation tests before any test assertion changes. Subsequent lint
+cleanup preserved numerical expectations and tightened invalid-argument checks.
+
+Markdown plan examples are excluded from Python formatting so adopting the formatter
+does not rewrite historical planning documents. All Python source, tests, and
+migrations remain checked. `uv.lock` includes the new development dependencies.
+
+CI uses the action versions checked against their upstream READMEs at implementation
+time: `actions/checkout@v7` and `astral-sh/setup-uv` v10.1.0, with uv 0.12.23.
+Commits and remote CI execution remain separate from local implementation validation.
+
+Local validation complete: `./check.sh` passes all four lanes, with 132 tests and
+99.72% combined statement/branch coverage. `uv sync --locked --offline` confirms
+lockfile agreement. A temporary command stub verified non-zero propagation and
+early exit at each check, including invocation from outside the repository.
+Migration upgrade/downgrade operations are AST-identical to the original version.

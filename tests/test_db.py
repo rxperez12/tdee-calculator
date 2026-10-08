@@ -79,8 +79,7 @@ def test_backup_prunes_old_files_without_name_collisions(config) -> None:
         connection.execute("CREATE TABLE sample (value INTEGER NOT NULL)")
 
     created = [
-        backup(config.db_path, config.backup_dir, config.backup_keep)
-        for _ in range(5)
+        backup(config.db_path, config.backup_dir, config.backup_keep) for _ in range(5)
     ]
     backup_paths = sorted(config.backup_dir.glob("tdee-*.db"))
 

@@ -21,6 +21,7 @@ Milestone 2 has no dependencies and can be done any time before 5.
 
 - [ ] 1. Skeleton
 - [ ] 2. Math
+- [x] 2b. [Standards and quality gate](plans/02b-standards.md)
 - [ ] 3. Entry
 - [ ] 4. Settings
 - [ ] 5. Dashboard and chart

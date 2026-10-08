@@ -24,7 +24,8 @@ def _open_browser_when_ready(
             with request.urlopen(url, timeout=1):
                 webbrowser.open(url)
                 return
-        except OSError:  # URLError, timeouts, and connection resets while uvicorn starts
+        except OSError:
+            # URLError, timeouts, and connection resets while uvicorn starts.
             time.sleep(poll_interval)
 
     print(f"Open {url} in your browser.", file=sys.stderr)

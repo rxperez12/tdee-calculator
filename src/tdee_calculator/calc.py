@@ -111,13 +111,13 @@ def trend(logs: Iterable[DayLog], alpha: float = 0.1) -> list[TrendPoint]:
 def weight_slope(logs: Iterable[DayLog]) -> float | None:
     """Raw weight regression slope in kg per elapsed calendar day."""
     weights = sorted(
-        (log for log in logs if log.weight_kg is not None),
-        key=lambda log: log.date,
+        ((log.date, log.weight_kg) for log in logs if log.weight_kg is not None),
+        key=lambda point: point[0],
     )
     if len(weights) < 2:
         return None
-    elapsed = [(log.date - weights[0].date).days for log in weights]
-    return linear_regression(elapsed, [log.weight_kg for log in weights]).slope
+    elapsed = [(day - weights[0][0]).days for day, _ in weights]
+    return linear_regression(elapsed, [weight for _, weight in weights]).slope
 
 
 def logged_tdee(
@@ -151,10 +151,10 @@ def logged_tdee(
         (log for log in logs if lower <= log.date <= as_of),
         key=lambda log: log.date,
     )
-    weights = [log for log in window if log.weight_kg is not None]
+    weights = [(log.date, log.weight_kg) for log in window if log.weight_kg is not None]
     if len(weights) < min_weigh_ins:
         return None
-    start, end = weights[0].date, weights[-1].date
+    start, end = weights[0][0], weights[-1][0]
     span = (end - start).days
     if span < min_span_days:
         return None
@@ -172,15 +172,15 @@ def logged_tdee(
     for day in range(span):
         calories = intake.get(start + timedelta(days=day), avg_intake)
         cumulative.append(cumulative[-1] + calories)
-    elapsed = [(log.date - start).days for log in weights]
+    elapsed = [(day - start).days for day, _ in weights]
     adjusted = [
-        log.weight_kg - cumulative[day] / energy_density
-        for log, day in zip(weights, elapsed)
+        weight - cumulative[(day - start).days] / energy_density
+        for day, weight in weights
     ]
     return LoggedTdee(
         tdee=-energy_density * linear_regression(elapsed, adjusted).slope,
         slope_kg_per_day=linear_regression(
-            elapsed, [log.weight_kg for log in weights]
+            elapsed, [weight for _, weight in weights]
         ).slope,
         avg_intake=avg_intake,
         start_date=start,
@@ -225,7 +225,7 @@ def estimate_tdee(
     _require_integer(blend_full_days, "blend_full_days", 1)
     if blend_start_days >= blend_full_days:
         raise ValueError("blend_start_days must be less than blend_full_days")
-    # Checked up front: a zero share still lets NaN through, since 0 × NaN is NaN.
+    # Checked up front: a zero share still lets NaN through, since 0 * NaN is NaN.
     _require_finite(formula, "formula")
     if logged is not None:
         _require_finite(logged.tdee, "logged.tdee")
@@ -266,7 +266,7 @@ def goal_eta(
 ) -> GoalEta | None:
     """Constant-rate projection, with a 0.05 kg goal tolerance and rounded days."""
     remaining = goal_kg - current_kg
-    # The 1e-9 absorbs float error, e.g. 80.15 − 80.1 = 0.05000000000001137.
+    # The 1e-9 absorbs float error, e.g. 80.15 - 80.1 = 0.05000000000001137.
     if abs(remaining) <= 0.05 + 1e-9:
         return GoalEta(remaining, 0.0, today)
     if rate_kg_per_week == 0 or remaining * rate_kg_per_week < 0:

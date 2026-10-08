@@ -2,7 +2,6 @@ from pathlib import Path
 
 from tdee_calculator.config import load_config
 
-
 ENV_VARS = (
     "TDEE_HOST",
     "TDEE_PORT",
