@@ -10,7 +10,7 @@ doc; this file covers sequencing only. Each milestone gets its own detailed plan
 | --- | --- | --- | --- | --- |
 | 1 | **Skeleton:** package layout, config, SQLAlchemy models, Alembic migrations, startup backup, FastAPI page, `run.sh` | `./run.sh` opens a page in the browser, `data/tdee.db` exists with the schema, and each start writes a backup | — | [01-skeleton](plans/01-skeleton.md) |
 | 2 | **Math:** `calc.py` pure functions + pytest | Trend weight, TDEE estimated from logs, Mifflin-St Jeor, heuristic blend, target, and ETA are implemented and unit tested; no DB or web imports | — | [02-math](plans/02-math.md) |
-| 3 | **Entry:** form with upsert, recent entries list, edit and delete | Logging today takes a few seconds; saving an existing date updates it | 1 | |
+| 3 | **Entry:** form with upsert, recent entries list, edit and delete | Logging today takes a few seconds; saving an existing date updates it | 1 | [03-entry](plans/03-entry.md) |
 | 4 | **Settings:** settings page + `units.py` | Body stats, goal, units, and advanced values persist; data is stored in kg/kcal and converted for display | 1 | |
 | 5 | **Dashboard and chart** | TDEE with method, intake coverage + estimated days + last weigh-in date, today's target, trend and rate, conditional to-goal ETA, formula reference; Chart.js chart with range selector | 2, 3, 4 | |
 | 6 | **CSV export** | A download link returns all entries as CSV | 1 | |
