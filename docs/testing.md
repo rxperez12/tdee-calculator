@@ -14,7 +14,7 @@ For a focused iteration, use `uv run --locked pytest tests/test_calc.py`, or
 | Database behavior | Real SQLite in `tmp_path`; verify saved values, constraints, updates, and rollback where relevant |
 | Routes and forms | `TestClient` through the real database layer; verify the response and persisted state for mutations |
 | Migrations | Upgrade from empty, agreement between models and migrations, and preservation of existing data when the schema changes |
-| JavaScript behavior | Focused browser checks when a feature depends on JavaScript; browser automation is deferred until then |
+| JavaScript behavior | Keep JS logic-free: compute in Python and test the data it receives (e.g. the chart's JSON payload) with pytest. Check drawing by hand with the plan's browser checklist. Add browser automation (Playwright) only if JS grows logic of its own |
 
 ## Rules for every test
 

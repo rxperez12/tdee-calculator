@@ -1,0 +1,44 @@
+{# The one big number. The first matching state wins; see docs/plans/05-dashboard.md. #}
+{% set energy = settings.energy_unit %}
+{% set target = dashboard.target %}
+{% set estimate = dashboard.estimate %}
+<section class="hero" aria-labelledby="hero-heading">
+  {% if not dashboard.has_entries %}
+    <h2 id="hero-heading">Get started</h2>
+    <p class="hero-lead">Log your first weigh-in to get started.</p>
+    <p class="help">Your TDEE estimate and daily target build up from your weigh-ins and calorie totals.</p>
+  {% elif dashboard.last_weigh_in is none %}
+    <h2 id="hero-heading">Get started</h2>
+    <p class="hero-lead">Log a weigh-in to start your estimate.</p>
+    <p class="help">Calories alone aren't enough: both the formula and your own estimate need your weight.</p>
+  {% elif target is state("EstimateInvalid") %}
+    <h2 id="hero-heading">Check your data</h2>
+    <p class="hero-lead">Your TDEE estimate doesn't look right.</p>
+    <p class="help">Check your <a href="/history">recent entries</a> for a mistyped weight or calorie total, and your <a href="/settings">body stats</a>.</p>
+  {% elif target is state("EstimateLow") %}
+    <h2 id="hero-heading">You burn about</h2>
+    <p class="hero-value">{{ target.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }} a day</span></p>
+    <p class="help">This estimate is unusually low, so no daily target is shown. Check your <a href="/history">logs</a> and <a href="/settings">body stats</a>.</p>
+  {% elif target is state("Target") %}
+    <h2 id="hero-heading">Eat about</h2>
+    <p class="hero-value">{{ target.kcal | intake_display(energy) }} <span class="unit">{{ energy.value }} today</span></p>
+    <p class="hero-sub">to {{ settings.rate_kg_per_week | change(settings.weight_unit) }}</p>
+  {% elif target is state("TargetBelowFloor") %}
+    <h2 id="hero-heading">You burn about</h2>
+    <p class="hero-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }} a day</span></p>
+    <p class="notice" role="note">
+      Losing {{ settings.rate_kg_per_week | abs | rate(settings.weight_unit) }} {{ settings.weight_unit.value }} a week would mean eating under {{ target.floor | intake_display(energy) }} {{ energy.value }} a day.
+      The fastest loss that stays at or above that is {{ target.safe_rate_kg_per_week | abs | rate(settings.weight_unit) }} {{ settings.weight_unit.value }} a week.
+      <a href="/settings">Change your rate in Settings</a>.
+      <span class="help">This is a guardrail, not medical advice.</span>
+    </p>
+  {% elif estimate is not none %}
+    <h2 id="hero-heading">You burn about</h2>
+    <p class="hero-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }} a day</span></p>
+    <p class="help"><a href="/settings">Set a goal rate in Settings</a> to get a daily target.</p>
+  {% else %}
+    <h2 id="hero-heading">Almost there</h2>
+    <p class="hero-lead">Your TDEE estimate is on its way.</p>
+    <p class="help">Keep logging weight and calories daily. The TDEE panel shows what's still needed.</p>
+  {% endif %}
+</section>

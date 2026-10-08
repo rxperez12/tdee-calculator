@@ -1,15 +1,51 @@
+/* Plain values per mode, not light-dark(): the chart reads these with
+   getComputedStyle, which returns light-dark() unresolved. */
 :root {
   color-scheme: light dark;
-  font-family: system-ui, sans-serif;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --surface: #ffffff;
+  --text: #0b0b0b;
+  --text-muted: #52514e;
+  --border: #e1e0d9;
+  --chart-accent: #2a78d6;
+  --chart-muted: #898781;
+  --chart-goal: #52514e;
+  --chart-grid: #e1e0d9;
+  --chart-text: #52514e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #121212;
+    --text: #f2f2f2;
+    --text-muted: #c3c2b7;
+    --border: #383835;
+    --chart-accent: #3987e5;
+    --chart-muted: #898781;
+    --chart-goal: #c3c2b7;
+    --chart-grid: #2c2c2a;
+    --chart-text: #c3c2b7;
+  }
 }
 
 body {
   margin: 0;
+  background: var(--surface);
+  color: var(--text);
 }
 
 main {
   width: min(40rem, calc(100% - 2rem));
   margin: 4rem auto;
+}
+
+main.wide {
+  width: min(60rem, calc(100% - 2rem));
+}
+
+:focus-visible {
+  outline: 2px solid var(--chart-accent);
+  outline-offset: 2px;
 }
 
 h1 {
@@ -139,6 +175,169 @@ th, td {
 
 .actions button {
   padding: 0.3rem 0.5rem;
+}
+
+/* Today */
+
+.today-top {
+  display: grid;
+  gap: 1.5rem 2.5rem;
+  align-items: start;
+}
+
+@media (min-width: 48rem) {
+  .today-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+}
+
+.hero h2,
+.tile h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.hero-value {
+  margin: 0;
+  font-size: 3rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.hero-value .unit,
+.tile-value .unit {
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.hero-lead {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.hero-sub {
+  margin: 0.4rem 0 0;
+  font-size: 1.1rem;
+}
+
+.log h2 {
+  margin-top: 0;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.tile {
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+}
+
+.tile-value {
+  margin: 0 0 0.4rem;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.tile-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.tile-note.stale {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chart-section {
+  margin-top: 2.5rem;
+}
+
+.chart-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.chart-header h2 {
+  margin: 0;
+}
+
+.range {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.range a {
+  min-height: 2rem;
+  padding: 0.4rem 0.9rem;
+  color: inherit;
+  text-decoration: none;
+  line-height: 1.2;
+}
+
+.range a + a {
+  border-inline-start: 1px solid var(--border);
+}
+
+.range a:hover {
+  background: color-mix(in srgb, var(--chart-accent) 8%, transparent);
+}
+
+.range a[aria-current="true"] {
+  background: color-mix(in srgb, var(--chart-accent) 16%, transparent);
+  font-weight: 600;
+}
+
+.chart-figure {
+  margin: 1rem 0 0;
+}
+
+.chart-box {
+  position: relative;
+  height: clamp(16rem, 40vh, 24rem);
+}
+
+.chart-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.chart-figure figcaption {
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.chart-table {
+  margin-top: 1rem;
+}
+
+.chart-table summary {
+  cursor: pointer;
+}
+
+.chart-empty {
+  margin: 1rem 0 0;
+  color: var(--text-muted);
 }
 
 @media (max-width: 30rem) {

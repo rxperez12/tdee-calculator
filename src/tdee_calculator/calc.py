@@ -120,6 +120,56 @@ def weight_slope(logs: Iterable[DayLog]) -> float | None:
     return linear_regression(elapsed, [weight for _, weight in weights]).slope
 
 
+@dataclass(frozen=True)
+class WindowProgress:
+    weigh_ins: int
+    span_days: int
+    calorie_days: int
+    calorie_days_needed: int
+
+
+def _bracket(
+    logs: Iterable[DayLog], as_of: date, window_days: int
+) -> tuple[list[tuple[date, float]], dict[date, int]]:
+    """Weigh-ins in the window, and recorded intake between the first and last."""
+    lower = as_of - timedelta(days=window_days)
+    window = sorted(
+        (log for log in logs if lower <= log.date <= as_of),
+        key=lambda log: log.date,
+    )
+    weights = [(log.date, log.weight_kg) for log in window if log.weight_kg is not None]
+    if not weights:
+        return [], {}
+    start, end = weights[0][0], weights[-1][0]
+    intake = {
+        log.date: log.calories
+        for log in window
+        if start <= log.date < end and log.calories is not None
+    }
+    return weights, intake
+
+
+def window_progress(
+    logs: Iterable[DayLog],
+    as_of: date,
+    *,
+    window_days: int = 28,
+    min_calorie_coverage: float = 0.9,
+) -> WindowProgress:
+    """How far the window is toward each of logged_tdee's data requirements."""
+    _require_integer(window_days, "window_days", 1)
+    if not 0 < min_calorie_coverage <= 1:
+        raise ValueError("min_calorie_coverage must be in (0, 1]")
+    weights, intake = _bracket(logs, as_of, window_days)
+    span = (weights[-1][0] - weights[0][0]).days if weights else 0
+    needed = 0
+    if span:
+        # The same comparison logged_tdee makes, not ceil() of a float product.
+        # n = span always qualifies, since coverage is at most 1.
+        needed = next(n for n in range(span + 1) if n / span >= min_calorie_coverage)
+    return WindowProgress(len(weights), span, len(intake), needed)
+
+
 def logged_tdee(
     logs: Iterable[DayLog],
     as_of: date,
@@ -146,23 +196,13 @@ def logged_tdee(
     if not 0 < min_calorie_coverage <= 1:
         raise ValueError("min_calorie_coverage must be in (0, 1]")
 
-    lower = as_of - timedelta(days=window_days)
-    window = sorted(
-        (log for log in logs if lower <= log.date <= as_of),
-        key=lambda log: log.date,
-    )
-    weights = [(log.date, log.weight_kg) for log in window if log.weight_kg is not None]
+    weights, intake = _bracket(logs, as_of, window_days)
     if len(weights) < min_weigh_ins:
         return None
     start, end = weights[0][0], weights[-1][0]
     span = (end - start).days
     if span < min_span_days:
         return None
-    intake = {
-        log.date: log.calories
-        for log in window
-        if start <= log.date < end and log.calories is not None
-    }
     if len(intake) / span < min_calorie_coverage:
         return None
     avg_intake = mean(intake.values())

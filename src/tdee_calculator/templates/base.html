@@ -5,12 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}TDEE Tracker{% endblock %}</title>
     <link rel="stylesheet" href="/static/style.css">
+    {% block head %}{% endblock %}
   </head>
   <body>
-    <main>
+    <main class="{% block main_class %}{% endblock %}">
       <nav aria-label="Main navigation">
-        <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Log</a>
-        <a href="/settings" {% if request.url.path == '/settings' %}aria-current="page"{% endif %}>Settings</a>
+        {% for path, label in [('/', 'Today'), ('/history', 'History'), ('/settings', 'Settings')] %}
+          <a href="{{ path }}" {% if request.url.path == path %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
       </nav>
       {% block content %}{% endblock %}
     </main>
