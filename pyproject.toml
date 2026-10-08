@@ -52,7 +52,7 @@ strict = true
 files = ["src"]
 
 [tool.coverage.run]
-source = ["tdee_calculator"]
+source = ["src/tdee_calculator"]
 branch = true
 
 [tool.coverage.report]

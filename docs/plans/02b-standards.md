@@ -251,8 +251,16 @@ CI uses the action versions checked against their upstream READMEs at implementa
 time: `actions/checkout@v7` and `astral-sh/setup-uv` v10.1.0, with uv 0.12.23.
 Commits and remote CI execution remain separate from local implementation validation.
 
-Local validation complete: `./check.sh` passes all four lanes, with 132 tests and
-99.72% combined statement/branch coverage. `uv sync --locked --offline` confirms
+Coverage source correction: `source = ["tdee_calculator"]` measured only importable
+modules. Alembic loads `migrations/env.py` and the revision files by path, so they were
+silently left out; measuring them dropped the total to 95.86%. The source is now the
+directory `src/tdee_calculator`. Added tests for a downgrade-to-base round trip and for
+the CLI path (`alembic.ini` plus `TDEE_DATA_DIR`, used by `alembic revision`). Offline
+`--sql` migrations were never used, so `env.py` now rejects them instead of carrying
+untested code. The 98% floor stays.
+
+Local validation complete: `./check.sh` passes all four lanes, with 135 tests and
+99.75% combined statement/branch coverage over all of `src/`. `uv sync --locked --offline` confirms
 lockfile agreement. A temporary command stub verified non-zero propagation and
 early exit at each check, including invocation from outside the repository.
 Migration upgrade/downgrade operations are AST-identical to the original version.

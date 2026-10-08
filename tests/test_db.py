@@ -1,8 +1,10 @@
 import sqlite3
 from contextlib import closing
+from pathlib import Path
 
 import pytest
 from alembic import command
+from alembic.config import Config as AlembicConfig
 from sqlalchemy import inspect
 
 from tdee_calculator.db import (
@@ -12,6 +14,16 @@ from tdee_calculator.db import (
     prepare,
     run_migrations,
 )
+
+ALEMBIC_INI = Path(__file__).parents[1] / "alembic.ini"
+
+
+def table_names(config) -> set[str]:
+    engine = make_engine(config)
+    try:
+        return set(inspect(engine).get_table_names())
+    finally:
+        engine.dispose()
 
 
 def test_run_migrations_creates_missing_data_directory_and_tables(config) -> None:
@@ -41,6 +53,36 @@ def test_models_match_migrations(config) -> None:
     run_migrations(config)
 
     command.check(make_alembic_config(config))
+
+
+def test_migrations_downgrade_to_base_and_upgrade_again(config) -> None:
+    run_migrations(config)
+    alembic_config = make_alembic_config(config)
+
+    command.downgrade(alembic_config, "base")
+    assert table_names(config) == {"alembic_version"}
+
+    command.upgrade(alembic_config, "head")
+    assert table_names(config) == {"alembic_version", "entries", "settings"}
+
+
+def test_alembic_cli_config_migrates_database_from_environment(
+    monkeypatch, config
+) -> None:
+    # alembic.ini's logging setup would replace pytest's handlers for later tests.
+    logging_configs = []
+    monkeypatch.setattr("logging.config.fileConfig", logging_configs.append)
+    monkeypatch.setenv("TDEE_DATA_DIR", str(config.data_dir))
+
+    command.upgrade(AlembicConfig(str(ALEMBIC_INI)), "head")
+
+    assert logging_configs == [str(ALEMBIC_INI)]
+    assert table_names(config) == {"alembic_version", "entries", "settings"}
+
+
+def test_offline_migrations_are_rejected(config) -> None:
+    with pytest.raises(RuntimeError, match="Offline"):
+        command.upgrade(make_alembic_config(config), "head", sql=True)
 
 
 def test_backup_returns_none_when_database_is_missing(config) -> None:
