@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Settings · TDEE Tracker{% endblock %}
+
+{% macro input_field(name, label, type='number', step='any', min=none, max=none, placeholder='', help='', error_key=none) %}
+  {% set error = errors.get(error_key or name) %}
+  <div class="field">
+    <label for="{{ name }}">{{ label }}</label>
+    <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ form_values.get(name, '') }}"
+      {% if type == 'number' %}step="{{ step }}" inputmode="{{ 'numeric' if step == '1' else 'decimal' }}"{% endif %}
+      {% if min is not none %}min="{{ min }}"{% endif %} {% if max is not none %}max="{{ max }}"{% endif %}
+      {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+      {% if error %}aria-invalid="true"{% endif %}
+      {% if help or error %}aria-describedby="{% if help %}{{ name }}-help{% endif %}{% if help and error %} {% endif %}{% if error %}{{ name }}-error{% endif %}"{% endif %}>
+    {% if help %}<p class="help" id="{{ name }}-help">{{ help }}</p>{% endif %}
+    {% if error %}<p class="error" id="{{ name }}-error">{{ error }}</p>{% endif %}
+  </div>
+{% endmacro %}
+
+{% block content %}
+  <h1>Settings</h1>
+  {% if saved %}<p class="notice" role="status">Settings saved.</p>{% endif %}
+  {% if notice %}<p class="notice" role="alert">{{ notice }}</p>{% endif %}
+  <form action="/settings/units" method="post" class="units-form">
+    <fieldset>
+      <legend>Units</legend>
+      <div class="field-row">
+        {% for name, label, options in [('weight_unit', 'Weight', weight_units), ('energy_unit', 'Energy', energy_units)] %}
+          <div class="field">
+            <label for="{{ name }}">{{ label }}</label>
+            <select id="{{ name }}" name="{{ name }}" {% if errors.get(name) %}aria-invalid="true" aria-describedby="{{ name }}-error"{% endif %}>
+              {% for unit in options %}<option value="{{ unit.value }}" {% if unit_values.get(name) == unit.value %}selected{% endif %}>{{ unit.value }}</option>{% endfor %}
+            </select>
+            {% if errors.get(name) %}<p class="error" id="{{ name }}-error">{{ errors[name] }}</p>{% endif %}
+          </div>
+        {% endfor %}
+      </div>
+      <button type="submit">Save units</button>
+    </fieldset>
+  </form>
+  <form action="/settings" method="post" class="settings-form">
+    <input type="hidden" name="weight_unit" value="{{ settings.weight_unit.value }}">
+    <input type="hidden" name="energy_unit" value="{{ settings.energy_unit.value }}">
+    <fieldset>
+      <legend>Body</legend>
+      <div class="field-row">
+        <div class="field">
+          <label for="sex">Sex</label>
+          <select id="sex" name="sex" {% if errors.get('sex') %}aria-invalid="true" aria-describedby="sex-error"{% endif %}>
+            <option value="">Not set</option>
+            {% for value, label in [('female', 'Female'), ('male', 'Male')] %}<option value="{{ value }}" {% if form_values.get('sex') == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+          {% if errors.get('sex') %}<p class="error" id="sex-error">{{ errors['sex'] }}</p>{% endif %}
+        </div>
+        {{ input_field('birth_date', 'Birth date', type='date', max=today) }}
+      </div>
+      {% if settings.weight_unit.value == 'kg' %}
+        {{ input_field('height_cm', 'Height (cm)', min=height_min, max=height_max) }}
+      {% else %}
+        <div class="field-row">
+          {{ input_field('height_ft', 'Height (feet)', step='1', min=3, max=8, error_key='height') }}
+          {{ input_field('height_in', 'Height (inches)', min=0, max=12, error_key='height', help='At least 0 and less than 12 inches.') }}
+        </div>
+        <p class="help">Height: {{ height_limits }}.</p>
+      {% endif %}
+      <div class="field">
+        <label for="activity">Activity level</label>
+        <select id="activity" name="activity" {% if errors.get('activity') %}aria-invalid="true" aria-describedby="activity-error"{% endif %}>
+          <option value="">Not set</option>
+          {% for activity, label in activity_labels.items() %}<option value="{{ activity.name }}" {% if form_values.get('activity') == activity.name %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% if errors.get('activity') %}<p class="error" id="activity-error">{{ errors['activity'] }}</p>{% endif %}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Goal</legend>
+      <div class="field-row">
+        {{ input_field('goal_weight', 'Goal weight (' ~ settings.weight_unit.value ~ ')', min=weight_min, max=weight_max) }}
+        {{ input_field('rate_per_week', 'Rate (' ~ settings.weight_unit.value ~ '/week)', min=rate_min, max=rate_max, placeholder='-0.5', help='Negative to lose, positive to gain. 0 to maintain.') }}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Advanced</legend>
+      <p class="help">Leave blank to use the default shown.</p>
+      <div class="field-row">
+        {{ input_field('tdee_window_days', 'TDEE window (days)', step='1', min=window_min, max=window_max, placeholder=default_window) }}
+        {{ input_field('energy_density', 'Energy density (' ~ settings.energy_unit.value ~ '/' ~ settings.weight_unit.value ~ ')', min=density_min, max=density_max, placeholder=default_density) }}
+      </div>
+    </fieldset>
+    <button type="submit">Save settings</button>
+  </form>
+{% endblock %}

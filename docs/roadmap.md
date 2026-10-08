@@ -23,7 +23,7 @@ Milestone 2 has no dependencies and can be done any time before 5.
 - [x] 2. Math
 - [x] 2b. [Standards and quality gate](plans/02b-standards.md)
 - [x] 3. Entry
-- [ ] 4. Settings
+- [x] 4. Settings
 - [ ] 5. Dashboard and chart
 - [ ] 6. CSV export
 

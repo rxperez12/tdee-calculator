@@ -55,7 +55,9 @@ def form_data(entry_date="2026-10-08", weight="80.25", calories="2000"):
         "entry_date": entry_date,
         "loaded_date": entry_date,
         "loaded_version": "",
-        "weight_kg": weight,
+        "weight_unit": "kg",
+        "energy_unit": "kcal",
+        "weight": weight,
         "calories": calories,
     }
 
@@ -76,7 +78,9 @@ def test_home_prefills_today_and_focuses_weight(client) -> None:
         "entry_date": "2026-10-08",
         "loaded_date": "2026-10-08",
         "loaded_version": "",
-        "weight_kg": "",
+        "weight_unit": "kg",
+        "energy_unit": "kcal",
+        "weight": "",
         "calories": "",
     }
     assert 'max="2026-10-08"' in response.text
@@ -100,7 +104,7 @@ def test_save_redirects_and_persists(client, config) -> None:
 def test_evening_calories_keep_prefilled_morning_weight(client, config) -> None:
     assert save(client, form_data(calories="")).status_code == 303
     values = FormInputs(client.get("/").text).values
-    assert values["weight_kg"] == "80.25"
+    assert values["weight"] == "80.2"
     assert values["calories"] == ""
     values["calories"] = "2100"
     assert save(client, values).status_code == 303
@@ -112,7 +116,7 @@ def test_evening_calories_keep_prefilled_morning_weight(client, config) -> None:
 def test_stale_form_cannot_overwrite_newer_save(client, config) -> None:
     stale_tab = FormInputs(client.get("/").text).values
     fresh_tab = FormInputs(client.get("/").text).values
-    fresh_tab["weight_kg"] = "80.25"
+    fresh_tab["weight"] = "80.25"
     assert save(client, fresh_tab).status_code == 303
 
     stale_tab["calories"] = "2100"
@@ -144,11 +148,11 @@ def test_stale_form_cannot_recreate_deleted_entry(client, config) -> None:
 def test_second_save_replaces_values_without_duplicate(client, config) -> None:
     save(client)
     values = FormInputs(client.get("/").text).values
-    values.update(weight_kg="", calories="0")
+    values.update(weight="", calories="0")
     assert save(client, values).status_code == 303
     assert stored_entries(config) == [("2026-10-08", None, 0, "manual")]
     values = FormInputs(client.get("/").text).values
-    assert values["weight_kg"] == ""
+    assert values["weight"] == ""
     assert values["calories"] == "0"
 
 
@@ -159,7 +163,7 @@ def test_invalid_save_preserves_values_and_database(client, config, existing) ->
     before = stored_entries(config)
     response = save(client, form_data(weight="8000", calories="2000.5"))
     assert response.status_code == 422
-    assert "Weight must be between 20 and 400 kg" in response.text
+    assert "Weight must be between 20.0 and 400.0 kg" in response.text
     assert "Enter a whole number for calories" in response.text
     assert FormInputs(response.text).values == form_data(
         weight="8000", calories="2000.5"
@@ -170,7 +174,7 @@ def test_invalid_save_preserves_values_and_database(client, config, existing) ->
 
 
 def test_empty_form_is_html_error(client, config) -> None:
-    response = save(client, {})
+    response = save(client, {"weight_unit": "kg", "energy_unit": "kcal"})
     assert response.status_code == 422
     assert "Enter a valid date" in response.text
     assert "Enter weight or calories" in response.text
@@ -211,7 +215,7 @@ def test_error_form_resubmit_cannot_bypass_guard(client, config, first_status) -
     assert response.status_code == first_status
     values = FormInputs(response.text).values
     assert values["loaded_date"] == "2026-10-07"
-    values["weight_kg"] = "90"
+    values["weight"] = "90"
     assert save(client, values).status_code == 409
     assert stored_entries(config) == [
         ("2026-10-08", pytest.approx(80.25, abs=1e-9), 2000, "manual")
@@ -242,6 +246,7 @@ def test_edit_prefills_selected_date(client) -> None:
     save(client, form_data(entry_date="2026-10-07"))
     response = client.get("/?date=2026-10-07")
     expected = form_data(entry_date="2026-10-07")
+    expected["weight"] = "80.2"
     expected["loaded_version"] = "2026-10-08T08:00:00"
     assert FormInputs(response.text).values == expected
 
