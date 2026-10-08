@@ -8,6 +8,10 @@
   </head>
   <body>
     <main>
+      <nav aria-label="Main navigation">
+        <a href="/" {% if request.url.path == '/' %}aria-current="page"{% endif %}>Log</a>
+        <a href="/settings" {% if request.url.path == '/settings' %}aria-current="page"{% endif %}>Settings</a>
+      </nav>
       {% block content %}{% endblock %}
     </main>
   </body>

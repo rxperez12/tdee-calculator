@@ -1,6 +1,23 @@
+from __future__ import annotations
+
 import math
 from dataclasses import dataclass
 from datetime import date as Date
+from typing import TYPE_CHECKING
+
+from tdee_calculator.units import (
+    EnergyUnit,
+    WeightUnit,
+    energy_from_kcal,
+    energy_to_kcal,
+    format_energy,
+    format_weight,
+    matching_bound,
+    weight_to_kg,
+)
+
+if TYPE_CHECKING:
+    from tdee_calculator.models import Entry
 
 MIN_WEIGHT_KG = 20
 MAX_WEIGHT_KG = 400
@@ -21,7 +38,13 @@ class EntryFormErrors:
 
 
 def parse_entry_form(
-    date_text: str, weight_text: str, calories_text: str, today: Date
+    date_text: str,
+    weight_text: str,
+    calories_text: str,
+    today: Date,
+    weight_unit: WeightUnit = WeightUnit.KG,
+    energy_unit: EnergyUnit = EnergyUnit.KCAL,
+    current: Entry | None = None,
 ) -> EntryInput | EntryFormErrors:
     date_text, weight_text, calories_text = (
         date_text.strip(),
@@ -40,30 +63,60 @@ def parse_entry_form(
         if entry_date > today:
             errors["date"] = "Date cannot be in the future."
 
-    if weight_text:
+    if (
+        current is not None
+        and current.weight_kg is not None
+        and weight_text == format_weight(current.weight_kg, weight_unit)
+    ):
+        weight = current.weight_kg
+    elif weight_text:
         try:
-            weight = float(weight_text)
+            parsed_weight = float(weight_text)
         except ValueError:
-            errors["weight_kg"] = "Enter a number for weight."
+            errors["weight"] = "Enter a number for weight."
         else:
+            bound = matching_bound(
+                parsed_weight,
+                MIN_WEIGHT_KG,
+                MAX_WEIGHT_KG,
+                lambda kg: format_weight(kg, weight_unit),
+            )
+            weight = (
+                bound if bound is not None else weight_to_kg(parsed_weight, weight_unit)
+            )
             if (
                 not math.isfinite(weight)
                 or not MIN_WEIGHT_KG <= weight <= MAX_WEIGHT_KG
             ):
-                errors["weight_kg"] = (
-                    f"Weight must be between {MIN_WEIGHT_KG} and {MAX_WEIGHT_KG} kg."
+                errors["weight"] = (
+                    "Weight must be between "
+                    f"{format_weight(MIN_WEIGHT_KG, weight_unit)} and "
+                    f"{format_weight(MAX_WEIGHT_KG, weight_unit)} {weight_unit.value}."
                 )
-    if calories_text:
+    if (
+        current is not None
+        and current.calories is not None
+        and calories_text == format_energy(current.calories, energy_unit)
+    ):
+        calories = current.calories
+    elif calories_text:
         try:
-            calories = int(calories_text)
+            parsed_energy = int(calories_text)
         except ValueError:
             errors["calories"] = "Enter a whole number for calories."
         else:
-            if not MIN_CALORIES <= calories <= MAX_CALORIES:
+            if (
+                not energy_from_kcal(MIN_CALORIES, energy_unit)
+                <= parsed_energy
+                <= energy_from_kcal(MAX_CALORIES, energy_unit)
+            ):
                 errors["calories"] = (
-                    f"Calories must be between {MIN_CALORIES:,} "
-                    f"and {MAX_CALORIES:,} kcal."
+                    "Calories must be between "
+                    f"{format_energy(MIN_CALORIES, energy_unit)} and "
+                    f"{format_energy(MAX_CALORIES, energy_unit)} {energy_unit.value}."
                 )
+            else:
+                calories = round(energy_to_kcal(parsed_energy, energy_unit))
     if not weight_text and not calories_text:
         errors["form"] = "Enter weight or calories, or both."
     if errors:
