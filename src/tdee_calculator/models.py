@@ -6,6 +6,10 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from tdee_calculator import clock
 
 
+def _now() -> DateTime:
+    return clock.now()
+
+
 class Base(DeclarativeBase):
     pass
 
@@ -17,8 +21,8 @@ class Entry(Base):
     weight_kg: Mapped[float | None]
     calories: Mapped[int | None]
     source: Mapped[str] = mapped_column(default="manual", server_default="manual")
-    created_at: Mapped[DateTime] = mapped_column(default=clock.now)
-    updated_at: Mapped[DateTime] = mapped_column(default=clock.now, onupdate=clock.now)
+    created_at: Mapped[DateTime] = mapped_column(default=_now)
+    updated_at: Mapped[DateTime] = mapped_column(default=_now, onupdate=_now)
 
 
 class Setting(Base):

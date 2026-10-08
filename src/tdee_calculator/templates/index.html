@@ -2,5 +2,67 @@
 
 {% block content %}
   <h1>TDEE Tracker</h1>
+  {% if saved %}
+    <p class="notice" role="status">Saved {{ saved.strftime('%a') }} {{ saved.day }} {{ saved.strftime('%b') }}</p>
+  {% endif %}
+
+  <h2>Log a day</h2>
+  {% if errors.get('form') %}
+    <p class="error" role="alert">{{ errors['form'] }}</p>
+  {% endif %}
+  {% if conflict_date %}
+    <p class="error" role="alert">
+      {{ conflict_date.day }} {{ conflict_date.strftime('%b') }} already has an entry:
+      <a href="/?date={{ conflict_date.isoformat() }}">Edit it</a>.
+    </p>
+  {% endif %}
+  <form method="post" action="/entries" class="entry-form">
+    <input type="hidden" name="loaded_date" value="{{ form_values['loaded_date'] }}">
+    <div class="field">
+      <label for="entry_date">Date</label>
+      <input id="entry_date" name="entry_date" type="date" max="{{ today }}" value="{{ form_values['entry_date'] }}" required
+        {% if errors.get('date') %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
+      {% if errors.get('date') %}<p class="error" id="date-error">{{ errors['date'] }}</p>{% endif %}
+    </div>
+    <div class="field">
+      <label for="weight_kg">Weight (kg)</label>
+      <input id="weight_kg" name="weight_kg" type="number" step="any" inputmode="decimal" min="20" max="400" value="{{ form_values['weight_kg'] }}" autofocus
+        {% if errors.get('weight_kg') %}aria-invalid="true" aria-describedby="weight-error"{% endif %}>
+      {% if errors.get('weight_kg') %}<p class="error" id="weight-error">{{ errors['weight_kg'] }}</p>{% endif %}
+    </div>
+    <div class="field">
+      <label for="calories">Calories (kcal)</label>
+      <input id="calories" name="calories" type="number" step="1" inputmode="numeric" min="0" max="20000" value="{{ form_values['calories'] }}"
+        {% if errors.get('calories') %}aria-invalid="true" aria-describedby="calories-error"{% endif %}>
+      {% if errors.get('calories') %}<p class="error" id="calories-error">{{ errors['calories'] }}</p>{% endif %}
+    </div>
+    <button type="submit">{{ 'Update' if is_update else 'Save' }}</button>
+  </form>
+
+  <h2>Recent entries</h2>
   <p>{{ entry_count }} entries</p>
+  {% if recent_entries %}
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th scope="col">Date</th><th scope="col" class="number">Weight (kg)</th><th scope="col" class="number">Calories (kcal)</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+          {% for entry in recent_entries %}
+            <tr>
+              <th scope="row">{{ entry.date.strftime('%a') }} {{ entry.date.day }} {{ entry.date.strftime('%b %Y') }}</th>
+              <td class="number">{{ '%.1f'|format(entry.weight_kg) if entry.weight_kg is not none else '' }}</td>
+              <td class="number">{{ entry.calories if entry.calories is not none else '' }}</td>
+              <td class="actions">
+                <a href="/?date={{ entry.date.isoformat() }}" aria-label="Edit {{ entry.date.isoformat() }}">Edit</a>
+                <form method="post" action="/entries/{{ entry.date.isoformat() }}/delete">
+                  <button type="submit" aria-label="Delete {{ entry.date.isoformat() }}">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No entries yet. Log your first weight or calorie total above.</p>
+  {% endif %}
 {% endblock %}
