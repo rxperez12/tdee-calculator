@@ -58,7 +58,7 @@
       {% else %}
         <div class="field-row">
           {{ input_field('height_ft', 'Height (feet)', step='1', min=3, max=8, error_key='height') }}
-          {{ input_field('height_in', 'Height (inches)', min=0, max=12, error_key='height', help='At least 0 and less than 12 inches.') }}
+          {{ input_field('height_in', 'Height (inches)', min=0, max=11.5, error_key='height', help='At least 0 and less than 12 inches.') }}
         </div>
         <p class="help">Height: {{ height_limits }}.</p>
       {% endif %}

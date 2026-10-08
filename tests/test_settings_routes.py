@@ -135,6 +135,16 @@ def test_switching_units_preserves_entries_and_other_settings(client, config):
     assert rows(config, Entry) == before
 
 
+def test_inches_input_limit_matches_server(client):
+    switch_units(client)
+    page = client.get("/settings").text
+    tag = page[
+        page.index('id="height_in"') : page.index(">", page.index('id="height_in"'))
+    ]
+    # The server requires inches below 12, so the browser must not offer 12.
+    assert 'max="11.5"' in tag
+
+
 def test_imperial_entry_edit_preserves_weight(client, config):
     switch_units(client)
     data = FormInputs(client.get("/").text).values

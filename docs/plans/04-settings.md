@@ -374,8 +374,9 @@ settings.
       past the displayed bound (e.g. −3.32 lb/week, 44.0 lb), in both unit systems
       where the field converts. Messages show limits in the user's units.
 - [ ] Every displayed limit is accepted when typed in, and stores the canonical bound
-      exactly: −3.31 lb/week, 1814 kcal/lb, 8 ft 2.5 in. Limits that round inward (44.1 lb,
-      881.8 lb, 18029 kJ/lb) are accepted and stored as converted.
+      exactly, whichever way it rounds: outward (−3.31 lb/week, 1814 kcal/lb,
+      8 ft 2.5 in) or inward (44.1 lb → 20 kg, 881.8 lb → 400 kg, 18029 kJ/lb →
+      9,500 kcal/kg, 3 ft 3.5 in → 100 cm).
 - [ ] A stored bound (e.g. rate −1.5 kg/week) re-submitted unchanged in lb stays exactly −1.5.
 - [ ] Feet/inches: 12 inches, negative feet, and only one of the two inputs filled are rejected.
 - [ ] Birth date: age 15 accepted, 14 rejected, and a future date rejected.
