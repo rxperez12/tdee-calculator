@@ -54,6 +54,7 @@ def form_data(entry_date="2026-10-08", weight="80.25", calories="2000"):
     return {
         "entry_date": entry_date,
         "loaded_date": entry_date,
+        "loaded_version": "",
         "weight_kg": weight,
         "calories": calories,
     }
@@ -74,6 +75,7 @@ def test_home_prefills_today_and_focuses_weight(client) -> None:
     assert values == {
         "entry_date": "2026-10-08",
         "loaded_date": "2026-10-08",
+        "loaded_version": "",
         "weight_kg": "",
         "calories": "",
     }
@@ -107,9 +109,43 @@ def test_evening_calories_keep_prefilled_morning_weight(client, config) -> None:
     ]
 
 
+def test_stale_form_cannot_overwrite_newer_save(client, config) -> None:
+    stale_tab = FormInputs(client.get("/").text).values
+    fresh_tab = FormInputs(client.get("/").text).values
+    fresh_tab["weight_kg"] = "80.25"
+    assert save(client, fresh_tab).status_code == 303
+
+    stale_tab["calories"] = "2100"
+    response = save(client, stale_tab)
+
+    assert response.status_code == 409
+    assert "8 Oct changed since this page loaded" in response.text
+    assert 'href="/?date=2026-10-08"' in response.text
+    values = FormInputs(response.text).values
+    assert values == stale_tab
+    assert save(client, values).status_code == 409
+    assert stored_entries(config) == [
+        ("2026-10-08", pytest.approx(80.25, abs=1e-9), None, "manual")
+    ]
+
+
+def test_stale_form_cannot_recreate_deleted_entry(client, config) -> None:
+    save(client)
+    stale_tab = FormInputs(client.get("/").text).values
+    client.post("/entries/2026-10-08/delete")
+
+    response = save(client, stale_tab)
+
+    assert response.status_code == 409
+    assert "8 Oct changed since this page loaded" in response.text
+    assert stored_entries(config) == []
+
+
 def test_second_save_replaces_values_without_duplicate(client, config) -> None:
     save(client)
-    assert save(client, form_data(weight="", calories="0")).status_code == 303
+    values = FormInputs(client.get("/").text).values
+    values.update(weight_kg="", calories="0")
+    assert save(client, values).status_code == 303
     assert stored_entries(config) == [("2026-10-08", None, 0, "manual")]
     values = FormInputs(client.get("/").text).values
     assert values["weight_kg"] == ""
@@ -194,8 +230,8 @@ def test_backfill_new_date_is_allowed(client, config, loaded_date) -> None:
 
 def test_guard_compares_parsed_dates(client, config) -> None:
     save(client)
-    data = form_data(calories="2100")
-    data["loaded_date"] = "20261008"
+    data = FormInputs(client.get("/").text).values
+    data.update(loaded_date="20261008", calories="2100")
     assert save(client, data).status_code == 303
     assert stored_entries(config) == [
         ("2026-10-08", pytest.approx(80.25, abs=1e-9), 2100, "manual")
@@ -205,7 +241,9 @@ def test_guard_compares_parsed_dates(client, config) -> None:
 def test_edit_prefills_selected_date(client) -> None:
     save(client, form_data(entry_date="2026-10-07"))
     response = client.get("/?date=2026-10-07")
-    assert FormInputs(response.text).values == form_data(entry_date="2026-10-07")
+    expected = form_data(entry_date="2026-10-07")
+    expected["loaded_version"] = "2026-10-08T08:00:00"
+    assert FormInputs(response.text).values == expected
 
 
 def test_selecting_unlogged_date_shows_blank_form(client) -> None:

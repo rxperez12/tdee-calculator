@@ -38,6 +38,10 @@ def get_session(request: Request) -> Iterator[Session]:
 SessionDependency = Annotated[Session, Depends(get_session)]
 
 
+def entry_version(entry: Entry | None) -> str:
+    return "" if entry is None else entry.updated_at.isoformat()
+
+
 def create_app(config: Config | None = None) -> FastAPI:
     app_config = config or load_config()
 
@@ -83,6 +87,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         status_code: int = 200,
         saved: Date | None = None,
         conflict_date: Date | None = None,
+        stale_date: Date | None = None,
     ) -> HTMLResponse:
         entry_count = session.scalar(select(func.count()).select_from(Entry)) or 0
         try:
@@ -102,6 +107,7 @@ def create_app(config: Config | None = None) -> FastAPI:
                 "today": clock.today(),
                 "saved": saved,
                 "conflict_date": conflict_date,
+                "stale_date": stale_date,
                 "is_update": is_update,
             },
             status_code=status_code,
@@ -119,6 +125,7 @@ def create_app(config: Config | None = None) -> FastAPI:
         values = {
             "entry_date": form_date.isoformat(),
             "loaded_date": form_date.isoformat(),
+            "loaded_version": entry_version(entry),
             "weight_kg": (
                 str(entry.weight_kg)
                 if entry is not None and entry.weight_kg is not None
@@ -138,12 +145,14 @@ def create_app(config: Config | None = None) -> FastAPI:
         session: SessionDependency,
         entry_date: Annotated[str, Form()] = "",
         loaded_date: Annotated[str, Form()] = "",
+        loaded_version: Annotated[str, Form()] = "",
         weight_kg: Annotated[str, Form()] = "",
         calories: Annotated[str, Form()] = "",
     ) -> HTMLResponse | RedirectResponse:
         values = {
             "entry_date": entry_date,
             "loaded_date": loaded_date,
+            "loaded_version": loaded_version,
             "weight_kg": weight_kg,
             "calories": calories,
         }
@@ -155,12 +164,16 @@ def create_app(config: Config | None = None) -> FastAPI:
             loaded = Date.fromisoformat(loaded_date)
         except ValueError:
             loaded = None
-        if (
-            result.date != loaded
-            and entries.get_entry(session, result.date) is not None
-        ):
+        current = entries.get_entry(session, result.date)
+        if result.date != loaded and current is not None:
             return render_home(
                 request, session, values, status_code=409, conflict_date=result.date
+            )
+        # The form replaces both fields, so saving it is only safe if the row is
+        # still what the form showed, not something another tab saved since.
+        if result.date == loaded and loaded_version != entry_version(current):
+            return render_home(
+                request, session, values, status_code=409, stale_date=result.date
             )
         entries.upsert_entry(session, result)
         return RedirectResponse(f"/?saved={result.date.isoformat()}", status_code=303)

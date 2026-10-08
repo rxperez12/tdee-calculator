@@ -16,8 +16,15 @@
       <a href="/?date={{ conflict_date.isoformat() }}">Edit it</a>.
     </p>
   {% endif %}
+  {% if stale_date %}
+    <p class="error" role="alert">
+      {{ stale_date.day }} {{ stale_date.strftime('%b') }} changed since this page loaded:
+      <a href="/?date={{ stale_date.isoformat() }}">reload it</a> to see the saved values.
+    </p>
+  {% endif %}
   <form method="post" action="/entries" class="entry-form">
     <input type="hidden" name="loaded_date" value="{{ form_values['loaded_date'] }}">
+    <input type="hidden" name="loaded_version" value="{{ form_values['loaded_version'] }}">
     <div class="field">
       <label for="entry_date">Date</label>
       <input id="entry_date" name="entry_date" type="date" max="{{ today }}" value="{{ form_values['entry_date'] }}" required

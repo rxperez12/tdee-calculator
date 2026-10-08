@@ -63,6 +63,13 @@ The form carries a hidden `loaded_date`: the date it was rendered for. On save:
 A missing or malformed `loaded_date` matches no date, so a hand-built POST can create
 entries but never overwrite one. Tests that update an entry must send `loaded_date`.
 
+**Added after review:** the date check misses a stale form for the *same* date, e.g. a
+second tab still showing a blank form after the first tab saved a weight. The form
+also carries a hidden `loaded_version`: the row's `updated_at`, or `""` when the date
+had no row. Saving the loaded date is refused with 409 ("changed since this page
+loaded") unless the row's current version still matches. That also covers a row
+deleted in another tab.
+
 ### Cross-origin protection
 
 Today this protects `POST /entries` and the delete route. Milestones 4 and 6 add more
