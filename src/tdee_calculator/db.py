@@ -9,7 +9,6 @@ from sqlalchemy import Engine, create_engine
 from tdee_calculator import clock
 from tdee_calculator.config import Config
 
-
 MIGRATIONS_DIR = Path(__file__).with_name("migrations")
 
 

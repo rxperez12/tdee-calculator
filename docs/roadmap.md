@@ -9,10 +9,10 @@ doc; this file covers sequencing only. Each milestone gets its own detailed plan
 | # | Milestone | Done when | Depends on | Plan |
 | --- | --- | --- | --- | --- |
 | 1 | **Skeleton:** package layout, config, SQLAlchemy models, Alembic migrations, startup backup, FastAPI page, `run.sh` | `./run.sh` opens a page in the browser, `data/tdee.db` exists with the schema, and each start writes a backup | — | [01-skeleton](plans/01-skeleton.md) |
-| 2 | **Math:** `calc.py` pure functions + pytest | Trend weight, measured TDEE, Mifflin-St Jeor, blend, target, and ETA are implemented and unit tested; no DB or web imports | — | |
+| 2 | **Math:** `calc.py` pure functions + pytest | Trend weight, TDEE estimated from logs, Mifflin-St Jeor, heuristic blend, target, and ETA are implemented and unit tested; no DB or web imports | — | [02-math](plans/02-math.md) |
 | 3 | **Entry:** form with upsert, recent entries list, edit and delete | Logging today takes a few seconds; saving an existing date updates it | 1 | |
 | 4 | **Settings:** settings page + `units.py` | Body stats, goal, units, and advanced values persist; data is stored in kg/kcal and converted for display | 1 | |
-| 5 | **Dashboard and chart** | TDEE with method + confidence note, today's target, trend and rate, to-goal ETA, formula reference; Chart.js chart with range selector | 2, 3, 4 | |
+| 5 | **Dashboard and chart** | TDEE with method, intake coverage + estimated days + last weigh-in date, today's target, trend and rate, conditional to-goal ETA, formula reference; Chart.js chart with range selector | 2, 3, 4 | |
 | 6 | **CSV export** | A download link returns all entries as CSV | 1 | |
 
 Milestone 2 has no dependencies and can be done any time before 5.
@@ -21,6 +21,7 @@ Milestone 2 has no dependencies and can be done any time before 5.
 
 - [ ] 1. Skeleton
 - [ ] 2. Math
+- [x] 2b. [Standards and quality gate](plans/02b-standards.md)
 - [ ] 3. Entry
 - [ ] 4. Settings
 - [ ] 5. Dashboard and chart
@@ -28,8 +29,10 @@ Milestone 2 has no dependencies and can be done any time before 5.
 
 ## Notes
 
-- **Math is tested with synthetic data.** Build inputs with known answers (e.g. 28 days
-  at 2,000 kcal while losing exactly 0.5 lb/week → measured TDEE = 2,250 kcal).
+- **Math is tested with synthetic data.** Build inputs with known answers (e.g. 28
+  elapsed days of intake at 2,000 kcal, bracketed by morning weights falling exactly
+  0.5 kg/week → TDEE estimated from logs = 2,550 kcal at 7,700 kcal/kg). Include
+  variable intake, missing totals, and water shifts; see milestone 2's tests.
 - **Dev data for the dashboard.** An optional `scripts/seed_dev_data.py` that writes ~60
   days of fake entries to a separate dev database, so milestone 5 isn't built against an
   empty DB. Fold into milestone 5 if useful.
