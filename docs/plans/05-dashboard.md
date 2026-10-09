@@ -612,6 +612,9 @@ TDEE_DATA_DIR=/tmp/tdee-dev ./run.sh
 - [ ] Keyboard only: Tab reaches the form, the range links, and the table summary,
       with visible focus.
 - [ ] Empty data dir: the Today page shows the onboarding message and no broken chart.
+- [ ] Long history: seed with `--days 1826`, open `?range=all` at 375px, and sweep the
+      pointer across the chart. Every tooltip shows a single date. With years of data
+      several days share a pixel, so the hover mode must group by date, not position.
 - [ ] Set the rate to −1.5 kg/week: the target disappears, and the floor note suggests
       a rate and says it's a guardrail, not medical advice. Set it to the suggested
       rate: the target appears at or just above the floor, in kcal and in kJ.
@@ -643,8 +646,10 @@ Where the code settled or changed something this plan left open:
   `chart_payload(chart, unit)` makes the JSON. `target_status` and `goal_status` are
   public, so the floor and goal edge cases are tested with exact inputs.
 - **Tooltip interaction:** neither `'x'` nor `'index'` fit. `dashboard.js` registers a
-  small `nearestDate` interaction mode: the nearest date to the pointer, then every
-  tooltip series at that date. The goal line is left out of the tooltip.
+  small `nearestDate` interaction mode: the nearest point to the pointer, then every
+  tooltip series **with that same date string** (an earlier version grouped by pixel,
+  which mixed 7 dates in a five-year history at 375px). The goal line is left out of
+  the tooltip.
 - **Chart chrome:** no vertical gridlines (one per day was noise), unrotated x ticks,
   and the legend in reading order (`labels.sort`), not draw order.
 - **Goal in the y-range:** kept. With the seeded data (a goal 6.7 kg below), the trend

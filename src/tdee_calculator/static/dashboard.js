@@ -34,9 +34,11 @@
     const nearest = candidates.reduce((best, item) =>
       distance(item) < distance(best) ? item : best,
     );
-    return candidates.filter(
-      (item) => Math.abs(item.element.x - nearest.element.x) < 0.5,
-    );
+    // Group by the date itself, not by pixel: with years of history several days
+    // share a pixel, and the tooltip must still describe exactly one of them.
+    const dateOf = (item) => instance.data.datasets[item.datasetIndex].data[item.index].x;
+    const date = dateOf(nearest);
+    return candidates.filter((item) => dateOf(item) === date);
   };
 
   function datasets(colors) {

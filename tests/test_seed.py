@@ -48,6 +48,19 @@ def test_refuses_the_real_data_directory(seed, tmp_path, monkeypatch):
     assert not protected.exists()
 
 
+@pytest.mark.parametrize("target", ["real", "link", "real/inside"])
+def test_refuses_real_data_reached_through_a_symlink(
+    seed, tmp_path, monkeypatch, target
+):
+    # Regression: a symlinked data/ compared unresolved, so the guard missed it.
+    real = tmp_path / "real"
+    real.mkdir()
+    (tmp_path / "link").symlink_to(real)
+    monkeypatch.setattr(seed, "REAL_DATA_DIR", tmp_path / "link")
+    assert seed.main(["--data-dir", str(tmp_path / target)]) == 1
+    assert list(real.iterdir()) == []
+
+
 def test_writes_deterministic_entries_and_settings(seed, tmp_path):
     first, second = tmp_path / "one", tmp_path / "two"
     assert seed.main(["--data-dir", str(first), "--with-settings"]) == 0
@@ -70,3 +83,11 @@ def test_without_settings_leaves_defaults(seed, tmp_path):
     rows, settings = read(tmp_path)
     assert len(rows) <= 31
     assert settings.goal_weight_kg is None
+
+
+def test_long_histories_keep_realistic_weights(seed):
+    # Regression: five years of steady loss went below zero.
+    entries = seed.fake_entries(1826, date(2026, 10, 8))
+    weights = [entry.weight_kg for entry in entries if entry.weight_kg is not None]
+    assert min(weights) > 70
+    assert max(weights) < 90
