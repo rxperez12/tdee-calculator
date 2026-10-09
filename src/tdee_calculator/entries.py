@@ -39,9 +39,14 @@ def recent_entries(session: Session, limit: int = RECENT_LIMIT) -> list[Entry]:
     return list(session.scalars(select(Entry).order_by(Entry.date.desc()).limit(limit)))
 
 
+def all_entries(session: Session) -> list[Entry]:
+    """Every entry, oldest first."""
+    return list(session.scalars(select(Entry).order_by(Entry.date)))
+
+
 def all_day_logs(session: Session) -> list[DayLog]:
     """Every entry as calc input, oldest first."""
     return [
         DayLog(entry.date, entry.weight_kg, entry.calories)
-        for entry in session.scalars(select(Entry).order_by(Entry.date))
+        for entry in all_entries(session)
     ]
