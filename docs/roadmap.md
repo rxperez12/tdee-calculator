@@ -12,7 +12,7 @@ Build order for the TDEE tracker, including the Phase 2 wishlist. Each milestone
 | 3 | **Entry:** form with upsert, recent entries list, edit and delete | Logging today takes a few seconds; saving an existing date updates it | 1 | [03-entry](plans/03-entry.md) |
 | 4 | **Settings:** settings page + `units.py` | Body stats, goal, units, and advanced values persist; data is stored in kg/kcal and converted for display | 1 | [04-settings](plans/04-settings.md) |
 | 5 | **Dashboard and chart** | TDEE with method, intake coverage + estimated days + last weigh-in date, today's target, trend and rate, conditional to-goal ETA, formula reference; Chart.js chart with range selector | 2, 3, 4 | [05-dashboard](plans/05-dashboard.md) |
-| 6 | **CSV export** | A download link returns all entries as CSV | 1 | |
+| 6 | **CSV export** | A download link returns all entries as CSV | 1 | [06-csv-export](plans/06-csv-export.md) |
 
 Milestone 2 has no dependencies and can be done any time before 5.
 
