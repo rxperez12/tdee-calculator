@@ -71,7 +71,8 @@ def test_daily_table_includes_calorie_only_days(client, config):
     assert (
         table.index("Thu 8 Oct") < table.index("Wed 7 Oct") < table.index("Tue 6 Oct")
     )
-    assert 'href="/?date=2026-10-07&amp;range=4w"' in table
+    assert "Actions" not in table
+    assert ">Edit</a>" not in table
     assert table.count('class="number">—</td>') == 3
     assert 'class="number">0</td>' in table
 
@@ -86,7 +87,7 @@ def test_calorie_only_range_has_table_without_chart(client, config):
     assert "chart.umd.min.js" not in page
 
 
-def test_daily_table_uses_display_units_and_edit_loads_row(client, config):
+def test_daily_table_uses_display_units(client, config):
     seed(
         config,
         [DayLog(TODAY, 80.0, 2000)],
@@ -98,11 +99,6 @@ def test_daily_table_uses_display_units_and_edit_loads_row(client, config):
     assert "Calories (kJ)" in table
     assert 'class="number">176.4</td>' in table
     assert 'class="number">8368</td>' in table
-    link = re.search(r'href="([^\"]+)" aria-label="Edit', table)
-    assert link is not None
-    edit = client.get(link.group(1).replace("&amp;", "&")).text
-    assert "Logging Thu 8 Oct" in edit
-    assert 'name="range" value="4w"' in edit
 
 
 def test_daily_table_empty_range_and_old_weigh_in_with_recent_calories(client, config):

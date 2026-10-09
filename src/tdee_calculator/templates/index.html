@@ -2,6 +2,7 @@
 {% block main_class %}wide{% endblock %}
 
 {% block head %}
+  <script src="/static/date-selector.js" defer></script>
   {% if not chart.empty %}
     <script src="/static/vendor/chart.umd.min.js" defer></script>
     <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js" defer></script>

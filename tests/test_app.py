@@ -64,6 +64,9 @@ def test_date_selector_loads_day_separately_from_save(client, config) -> None:
     assert "onchange" not in selector.inputs["date"]
     assert selector.inputs["date"]["max"] == "2026-10-08"
     assert "required" in selector.inputs["date"]
+    assert "Load day</button>" not in page
+    assert 'class="logging-day"' not in page
+    assert '<script src="/static/date-selector.js" defer></script>' in page
     selector.values["date"] = "2026-10-07"
     loaded = client.get("/", params=selector.values)
     entry = FormInputs(loaded.text, action="/entries")
@@ -71,7 +74,7 @@ def test_date_selector_loads_day_separately_from_save(client, config) -> None:
     assert entry.values["entry_date"] == "2026-10-07"
     assert entry.values["loaded_date"] == "2026-10-07"
     assert entry.values["weight"] == "80.2"
-    assert "Logging Wed 7 Oct" in loaded.text
+    assert FormInputs(loaded.text, action="/").values["date"] == "2026-10-07"
     assert [form["method"] for form in entry.forms] == ["get", "post"]
     entry.values["calories"] = "2100"
     response = save(client, entry.values)
@@ -169,7 +172,7 @@ def test_invalid_selected_date_falls_back_to_today(client, date_text) -> None:
     entry = FormInputs(response.text)
     assert entry.values["entry_date"] == "2026-10-08"
     assert entry.values["range"] == "all"
-    assert "Logging Thu 8 Oct" in response.text
+    assert FormInputs(response.text, action="/").values["date"] == "2026-10-08"
 
 
 def test_backfilled_weight_keeps_existing_calories(client, config) -> None:
