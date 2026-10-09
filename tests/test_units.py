@@ -11,6 +11,7 @@ from tdee_calculator.units import (
     feet_inches_to_cm,
     format_density,
     format_energy,
+    format_energy_display,
     format_rate,
     format_weight,
     matching_bound,
@@ -97,4 +98,24 @@ def test_bound_matching_has_no_tolerance():
             lambda density: format_density(density, WeightUnit.LB, EnergyUnit.KCAL),
         )
         == 4000
+    )
+
+
+def test_energy_display_rounds_to_steps_with_separators():
+    assert format_energy_display(1947, EnergyUnit.KCAL) == "1,950"
+    assert format_energy_display(950, EnergyUnit.KCAL) == "950"
+    # 2,000 kcal is 8,368 kJ, nearest 50 kJ step.
+    assert format_energy_display(2000, EnergyUnit.KJ) == "8,350"
+    assert format_energy_display(-203, EnergyUnit.KCAL) == "-200"
+
+
+def test_energy_display_rounding_up_never_shows_less():
+    assert format_energy_display(1200, EnergyUnit.KCAL, round_up=True) == "1,200"
+    assert format_energy_display(1201, EnergyUnit.KCAL, round_up=True) == "1,210"
+    # 1,200 kcal is 5,020.8 kJ: the nearest step would show 5,000 (about 1,195 kcal).
+    assert format_energy_display(1200, EnergyUnit.KJ) == "5,000"
+    assert format_energy_display(1200, EnergyUnit.KJ, round_up=True) == "5,050"
+    assert (
+        format_energy_display(2000.0000000000002, EnergyUnit.KCAL, round_up=True)
+        == "2,000"
     )

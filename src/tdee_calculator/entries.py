@@ -3,6 +3,7 @@ from datetime import date as Date
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from tdee_calculator.calc import DayLog
 from tdee_calculator.entry_form import EntryInput
 from tdee_calculator.models import Entry
 
@@ -36,3 +37,11 @@ def delete_entry(session: Session, entry_date: Date) -> bool:
 
 def recent_entries(session: Session, limit: int = RECENT_LIMIT) -> list[Entry]:
     return list(session.scalars(select(Entry).order_by(Entry.date.desc()).limit(limit)))
+
+
+def all_day_logs(session: Session) -> list[DayLog]:
+    """Every entry as calc input, oldest first."""
+    return [
+        DayLog(entry.date, entry.weight_kg, entry.calories)
+        for entry in session.scalars(select(Entry).order_by(Entry.date))
+    ]

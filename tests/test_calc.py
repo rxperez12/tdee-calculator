@@ -540,3 +540,50 @@ def test_goal_eta_tolerance_is_inclusive_at_exactly_0_05_in_both_directions(
 @pytest.mark.parametrize("current,goal", [(80, 80.051), (80.051, 80)])
 def test_goal_eta_tolerance_stays_tight(current, goal):
     assert calc.goal_eta(current, goal, 0, START) is None
+
+
+def progress(logs, **kwargs):
+    return calc.window_progress(logs, START + timedelta(days=28), **kwargs)
+
+
+def test_window_progress_reports_missing_calories_with_full_weigh_ins():
+    logs = [replace(log, calories=None) for log in make_logs()]
+    # 90% of 28 bracketed days is 25.2, so 26 recorded days are needed.
+    assert progress(logs) == calc.WindowProgress(29, 28, 0, 26)
+    assert infer(logs) is None
+
+
+@pytest.mark.parametrize("missing,estimated", [(3, False), (2, True)])
+def test_window_progress_matches_logged_tdee_coverage_gate(missing, estimated):
+    logs = make_logs()
+    logs[:missing] = [replace(log, calories=None) for log in logs[:missing]]
+    result = progress(logs)
+    assert (result.calorie_days, result.calorie_days_needed) == (28 - missing, 26)
+    assert (infer(logs) is not None) is estimated
+
+
+def test_window_progress_ignores_final_morning_intake_and_outside_logs():
+    logs = make_logs()
+    logs[-1] = replace(logs[-1], calories=5000)
+    logs.append(calc.DayLog(START - timedelta(days=1), 79.0, 2000))
+    assert progress(logs) == calc.WindowProgress(29, 28, 28, 26)
+
+
+def test_window_progress_with_too_few_weigh_ins():
+    one = [calc.DayLog(START, 80.0, 2000), calc.DayLog(START + timedelta(1), None, 9)]
+    assert progress(one) == calc.WindowProgress(1, 0, 0, 0)
+    calories_only = [replace(log, weight_kg=None) for log in one]
+    assert progress(calories_only) == calc.WindowProgress(0, 0, 0, 0)
+    assert progress([]) == calc.WindowProgress(0, 0, 0, 0)
+
+
+@pytest.mark.parametrize(
+    "kwargs,message",
+    [
+        ({"window_days": 0}, "window_days"),
+        ({"min_calorie_coverage": 0}, "min_calorie_coverage"),
+    ],
+)
+def test_window_progress_rejects_invalid_parameters(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        progress(make_logs(), **kwargs)

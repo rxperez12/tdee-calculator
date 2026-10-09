@@ -5,8 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from tdee_calculator import clock
+from tdee_calculator.calc import DayLog
 from tdee_calculator.db import make_engine, run_migrations
 from tdee_calculator.entries import (
+    all_day_logs,
     delete_entry,
     get_entry,
     recent_entries,
@@ -99,3 +101,15 @@ def test_recent_entries_orders_and_limits(session) -> None:
         date(2026, 10, 7),
     ]
     assert len(recent_entries(session)) == 30
+
+
+def test_all_day_logs_converts_rows_oldest_first(session) -> None:
+    assert all_day_logs(session) == []
+    upsert_entry(session, EntryInput(DAY, 80.25, None))
+    upsert_entry(session, EntryInput(DAY - timedelta(days=2), None, 2000))
+    upsert_entry(session, EntryInput(DAY - timedelta(days=1), 80.5, 2100))
+    assert all_day_logs(session) == [
+        DayLog(date(2026, 10, 6), None, 2000),
+        DayLog(date(2026, 10, 7), 80.5, 2100),
+        DayLog(DAY, 80.25, None),
+    ]

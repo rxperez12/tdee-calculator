@@ -1,0 +1,61 @@
+{# Chart.js 4.5.1 and chartjs-adapter-date-fns 3.0.0, vendored: see static/vendor/README.md #}
+{% set weight = settings.weight_unit %}
+<section class="chart-section" aria-labelledby="chart">
+  <div class="chart-header">
+    <h2 id="chart">Weight</h2>
+    <div class="range" role="group" aria-label="Chart range">
+      {% for option in ranges %}
+        <a href="/?range={{ option }}{% if link_date %}&amp;date={{ link_date }}{% endif %}#chart"
+          {% if option == chart.range %}aria-current="true"{% endif %}>{{ range_labels[option] }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% if chart.empty %}
+    <p class="chart-empty">
+      {% if chart.has_weigh_ins %}
+        No weigh-ins in the last {{ range_labels[chart.range] }}.
+        <a href="/?range=all#chart">Show all</a>
+      {% else %}
+        No weigh-ins yet.
+      {% endif %}
+    </p>
+  {% else %}
+    {% set first = chart.points[0] %}
+    {% set last = chart.points[-1] %}
+    {% set caption -%}
+      {%- if chart.points | length == 1 -%}
+      One weigh-in so far: {{ first.weight_kg | weight(weight) }} {{ weight.value }} on {{ first.date | short_date(today) }}.
+      {%- else -%}
+      Trend {{ first.trend_kg | weight(weight) }} → {{ last.trend_kg | weight(weight) }} {{ weight.value }}
+      {%- if chart.range == 'all' or chart.shorter_than_range %} since {{ first.date | short_date(today) }}{% else %} over the last {{ range_labels[chart.range] }}{% endif %}.
+      {%- endif %}
+      {%- if chart.goal_kg is not none %} Goal {{ chart.goal_kg | weight(weight) }} {{ weight.value }}.{% endif %}
+      {%- if chart.projection %} Projected {{ chart.projection[-1][1] | weight(weight) }} {{ weight.value }} by {{ chart.projection[-1][0] | short_date(today) }} at your target rate.{% endif %}
+    {%- endset %}
+    <figure class="chart-figure">
+      <div class="chart-box">
+        <p class="chart-fallback">Chart unavailable. The table below has the same data.</p>
+        <canvas id="weight-chart" role="img" aria-label="{{ caption }}"></canvas>
+      </div>
+      <figcaption class="visually-hidden">{{ caption }}</figcaption>
+    </figure>
+    <details class="chart-table">
+      <summary>Show data as a table</summary>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th scope="col">Date</th><th scope="col" class="number">Weigh-in ({{ weight.value }})</th><th scope="col" class="number">Trend ({{ weight.value }})</th></tr></thead>
+          <tbody>
+            {% for point in chart.points | reverse %}
+              <tr>
+                <th scope="row">{{ point.date | short_date(today) }}</th>
+                <td class="number">{{ point.weight_kg | weight(weight) }}</td>
+                <td class="number">{{ point.trend_kg | weight(weight) }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+    <script type="application/json" id="chart-data">{{ chart_data | tojson }}</script>
+  {% endif %}
+</section>

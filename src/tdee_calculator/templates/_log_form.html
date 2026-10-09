@@ -1,0 +1,42 @@
+<h2 id="log-heading">Log a day</h2>
+{% if errors.get('form') %}
+  <p class="error" role="alert">{{ errors['form'] }}</p>
+{% endif %}
+{% if conflict_date %}
+  <p class="error" role="alert">
+    {{ conflict_date.day }} {{ conflict_date.strftime('%b') }} already has an entry:
+    <a href="/?date={{ conflict_date.isoformat() }}">Edit it</a>.
+  </p>
+{% endif %}
+{% if stale_date %}
+  <p class="error" role="alert">
+    {{ stale_date.day }} {{ stale_date.strftime('%b') }} changed since this page loaded:
+    <a href="/?date={{ stale_date.isoformat() }}">reload it</a> to see the saved values.
+  </p>
+{% endif %}
+<form method="post" action="/entries" class="entry-form">
+  <input type="hidden" name="loaded_date" value="{{ form_values['loaded_date'] }}">
+  <input type="hidden" name="loaded_version" value="{{ form_values['loaded_version'] }}">
+  <input type="hidden" name="weight_unit" value="{{ form_values['weight_unit'] }}">
+  <input type="hidden" name="energy_unit" value="{{ form_values['energy_unit'] }}">
+  <div class="field">
+    <label for="entry_date">Date</label>
+    <input id="entry_date" name="entry_date" type="date" max="{{ today }}" value="{{ form_values['entry_date'] }}" required
+      {% if errors.get('date') %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
+    {% if errors.get('date') %}<p class="error" id="date-error">{{ errors['date'] }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="weight">Weight ({{ settings.weight_unit.value }})</label>
+    <input id="weight" name="weight" type="number" step="any" inputmode="decimal" min="{{ weight_min }}" max="{{ weight_max }}" value="{{ form_values['weight'] }}" autofocus
+      {% if errors.get('weight') %}aria-invalid="true" aria-describedby="weight-error"{% endif %}>
+    {% if errors.get('weight') %}<p class="error" id="weight-error">{{ errors['weight'] }}</p>{% endif %}
+  </div>
+  <div class="field">
+    <label for="calories">Calories ({{ settings.energy_unit.value }})</label>
+    <input id="calories" name="calories" type="number" step="1" inputmode="numeric" min="{{ energy_min }}" max="{{ energy_max }}" value="{{ form_values['calories'] }}"
+      {% if errors.get('calories') %}aria-invalid="true" aria-describedby="calories-error"{% endif %}>
+    {% if errors.get('calories') %}<p class="error" id="calories-error">{{ errors['calories'] }}</p>{% endif %}
+  </div>
+  <button type="submit">{{ 'Update' if is_update else 'Save' }}</button>
+</form>
+

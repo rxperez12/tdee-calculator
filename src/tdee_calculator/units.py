@@ -2,10 +2,12 @@
 
 from collections.abc import Callable
 from enum import StrEnum
+from math import ceil
 
 KG_PER_LB = 0.45359237
 KJ_PER_KCAL = 4.184
 CM_PER_INCH = 2.54
+DISPLAY_STEP = {"kcal": 10, "kJ": 50}
 
 
 class WeightUnit(StrEnum):
@@ -70,6 +72,20 @@ def format_energy(kcal: float, unit: EnergyUnit) -> str:
 
 def format_density(kcal_per_kg: float, weight: WeightUnit, energy: EnergyUnit) -> str:
     return f"{density_from_kcal_per_kg(kcal_per_kg, weight, energy):.0f}"
+
+
+def format_energy_display(
+    kcal: float, unit: EnergyUnit, *, round_up: bool = False
+) -> str:
+    """Display-only energy in steps of 10 kcal or 50 kJ, with thousands separators.
+
+    Rounding up keeps a displayed target from dropping below a displayed floor.
+    """
+    step = DISPLAY_STEP[unit.value]
+    value = energy_from_kcal(kcal, unit)
+    # Six places absorbs float noise, e.g. 2000.0000000000002 must not show as 2,010.
+    steps = ceil(round(value, 6) / step) if round_up else round(value / step)
+    return f"{steps * step:,}"
 
 
 def matching_bound(

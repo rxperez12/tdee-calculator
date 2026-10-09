@@ -11,10 +11,12 @@ from tdee_calculator.db import make_engine
 from tdee_calculator.models import Entry
 
 
-def test_home_page_shows_zero_entries(client) -> None:
-    response = client.get("/")
+def test_history_page_shows_zero_entries(client) -> None:
+    response = client.get("/history")
     assert response.status_code == 200
     assert "0 entries" in response.text
+    assert "No entries yet" in response.text
+    assert 'aria-current="page">History' in response.text
 
 
 def test_app_startup_creates_database(config) -> None:
@@ -85,7 +87,6 @@ def test_home_prefills_today_and_focuses_weight(client) -> None:
     }
     assert 'max="2026-10-08"' in response.text
     assert "autofocus" in response.text
-    assert "No entries yet" in response.text
 
 
 def test_save_redirects_and_persists(client, config) -> None:
@@ -97,8 +98,8 @@ def test_save_redirects_and_persists(client, config) -> None:
     ]
     page = client.get(response.headers["location"])
     assert "Saved Thu 8 Oct" in page.text
-    assert "1 entries" in page.text
     assert ">Update</button>" in page.text
+    assert "1 entry" in client.get("/history").text
 
 
 def test_evening_calories_keep_prefilled_morning_weight(client, config) -> None:
@@ -169,8 +170,6 @@ def test_invalid_save_preserves_values_and_database(client, config, existing) ->
         weight="8000", calories="2000.5"
     )
     assert stored_entries(config) == before
-    if existing:
-        assert 'href="/?date=2026-10-08"' in response.text
 
 
 def test_empty_form_is_html_error(client, config) -> None:
@@ -261,7 +260,7 @@ def test_recent_list_orders_limits_and_formats(client) -> None:
     for offset in range(32):
         entry_date = (date(2026, 10, 8) - timedelta(days=offset)).isoformat()
         assert save(client, form_data(entry_date)).status_code == 303
-    page = client.get("/").text
+    page = client.get("/history").text
     assert page.index('href="/?date=2026-10-08"') < page.index(
         'href="/?date=2026-10-07"'
     )
@@ -277,7 +276,7 @@ def test_delete_is_idempotent_and_redirects(client, config) -> None:
     for _ in range(2):
         response = client.post("/entries/2026-10-08/delete", follow_redirects=False)
         assert response.status_code == 303
-        assert response.headers["location"] == "/"
+        assert response.headers["location"] == "/history"
         assert stored_entries(config) == []
 
 

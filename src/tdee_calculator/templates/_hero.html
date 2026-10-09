@@ -1,0 +1,42 @@
+{# The one big number. The first matching state wins; see docs/plans/05-dashboard.md. #}
+{% set energy = settings.energy_unit %}
+{% set weight = settings.weight_unit %}
+{% set target = dashboard.target %}
+{% set estimate = dashboard.estimate %}
+{% set early %}{% if dashboard.estimate_early %} <span class="tag warn">Early</span>{% endif %}{% endset %}
+<section class="hero" aria-labelledby="hero-heading">
+  {% if not dashboard.has_entries %}
+    <h2 id="hero-heading">Get started</h2>
+    <p class="hero-lead">Log your first weigh-in.</p>
+  {% elif dashboard.last_weigh_in is none %}
+    <h2 id="hero-heading">Get started</h2>
+    <p class="hero-lead">Log a weigh-in to start your estimate.</p>
+  {% elif target is state("EstimateInvalid") %}
+    <h2 id="hero-heading">Check your data</h2>
+    <p class="hero-lead">This TDEE estimate doesn't look right.</p>
+    <p class="hero-sub">Look for a typo in <a href="/history">History</a>, or check <a href="/settings">Settings</a>.</p>
+  {% elif target is state("EstimateLow") %}
+    <h2 id="hero-heading">You burn about{{ early }}</h2>
+    <p class="hero-value">{{ target.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }}/day</span></p>
+    <p class="hero-sub">Unusually low, so no target. Check <a href="/history">History</a> and <a href="/settings">Settings</a>.</p>
+  {% elif target is state("Target") %}
+    <h2 id="hero-heading">Eat about{{ early }}</h2>
+    <p class="hero-value">{{ target.kcal | intake_display(energy) }} <span class="unit">{{ energy.value }} today</span></p>
+    <p class="hero-sub">to {{ settings.rate_kg_per_week | change(weight) }}</p>
+  {% elif target is state("TargetBelowFloor") %}
+    <h2 id="hero-heading">You burn about{{ early }}</h2>
+    <p class="hero-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }}/day</span></p>
+    <p class="notice warn" role="note">
+      Losing {{ settings.rate_kg_per_week | abs | rate(weight) }} {{ weight.value }}/week means eating under {{ target.floor | intake_display(energy) }} {{ energy.value }}.
+      Try {{ target.safe_rate_kg_per_week | abs | rate(weight) }} {{ weight.value }}/week or slower in <a href="/settings">Settings</a>.
+      <span class="fine">A guardrail, not medical advice.</span>
+    </p>
+  {% elif estimate is not none %}
+    <h2 id="hero-heading">You burn about{{ early }}</h2>
+    <p class="hero-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }}/day</span></p>
+    <p class="hero-sub"><a href="/settings">Set a goal rate</a> for a daily target.</p>
+  {% else %}
+    <h2 id="hero-heading">Almost there</h2>
+    <p class="hero-lead">Keep logging weight and calories.</p>
+  {% endif %}
+</section>

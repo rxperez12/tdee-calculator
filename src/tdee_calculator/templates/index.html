@@ -1,78 +1,29 @@
 {% extends "base.html" %}
+{% block main_class %}wide{% endblock %}
+
+{% block head %}
+  {% if not chart.empty %}
+    <script src="/static/vendor/chart.umd.min.js" defer></script>
+    <script src="/static/vendor/chartjs-adapter-date-fns.bundle.min.js" defer></script>
+    <script src="/static/dashboard.js" defer></script>
+  {% endif %}
+{% endblock %}
 
 {% block content %}
-  <h1>TDEE Tracker</h1>
+  <h1>Today</h1>
   {% if saved %}
-    <p class="notice" role="status">Saved {{ saved.strftime('%a') }} {{ saved.day }} {{ saved.strftime('%b') }}</p>
+    <p class="notice" role="status">Saved {{ saved | short_date(today) }}</p>
   {% endif %}
 
   {% if notice %}<p class="notice" role="alert">{{ notice }}</p>{% endif %}
-  <h2>Log a day</h2>
-  {% if errors.get('form') %}
-    <p class="error" role="alert">{{ errors['form'] }}</p>
-  {% endif %}
-  {% if conflict_date %}
-    <p class="error" role="alert">
-      {{ conflict_date.day }} {{ conflict_date.strftime('%b') }} already has an entry:
-      <a href="/?date={{ conflict_date.isoformat() }}">Edit it</a>.
-    </p>
-  {% endif %}
-  {% if stale_date %}
-    <p class="error" role="alert">
-      {{ stale_date.day }} {{ stale_date.strftime('%b') }} changed since this page loaded:
-      <a href="/?date={{ stale_date.isoformat() }}">reload it</a> to see the saved values.
-    </p>
-  {% endif %}
-  <form method="post" action="/entries" class="entry-form">
-    <input type="hidden" name="loaded_date" value="{{ form_values['loaded_date'] }}">
-    <input type="hidden" name="loaded_version" value="{{ form_values['loaded_version'] }}">
-    <input type="hidden" name="weight_unit" value="{{ form_values['weight_unit'] }}">
-    <input type="hidden" name="energy_unit" value="{{ form_values['energy_unit'] }}">
-    <div class="field">
-      <label for="entry_date">Date</label>
-      <input id="entry_date" name="entry_date" type="date" max="{{ today }}" value="{{ form_values['entry_date'] }}" required
-        {% if errors.get('date') %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
-      {% if errors.get('date') %}<p class="error" id="date-error">{{ errors['date'] }}</p>{% endif %}
-    </div>
-    <div class="field">
-      <label for="weight">Weight ({{ settings.weight_unit.value }})</label>
-      <input id="weight" name="weight" type="number" step="any" inputmode="decimal" min="{{ weight_min }}" max="{{ weight_max }}" value="{{ form_values['weight'] }}" autofocus
-        {% if errors.get('weight') %}aria-invalid="true" aria-describedby="weight-error"{% endif %}>
-      {% if errors.get('weight') %}<p class="error" id="weight-error">{{ errors['weight'] }}</p>{% endif %}
-    </div>
-    <div class="field">
-      <label for="calories">Calories ({{ settings.energy_unit.value }})</label>
-      <input id="calories" name="calories" type="number" step="1" inputmode="numeric" min="{{ energy_min }}" max="{{ energy_max }}" value="{{ form_values['calories'] }}"
-        {% if errors.get('calories') %}aria-invalid="true" aria-describedby="calories-error"{% endif %}>
-      {% if errors.get('calories') %}<p class="error" id="calories-error">{{ errors['calories'] }}</p>{% endif %}
-    </div>
-    <button type="submit">{{ 'Update' if is_update else 'Save' }}</button>
-  </form>
-
-  <h2>Recent entries</h2>
-  <p>{{ entry_count }} entries</p>
-  {% if recent_entries %}
-    <div class="table-scroll">
-      <table>
-        <thead><tr><th scope="col">Date</th><th scope="col" class="number">Weight ({{ settings.weight_unit.value }})</th><th scope="col" class="number">Calories ({{ settings.energy_unit.value }})</th><th scope="col">Actions</th></tr></thead>
-        <tbody>
-          {% for entry in recent_entries %}
-            <tr>
-              <th scope="row">{{ entry.date.strftime('%a') }} {{ entry.date.day }} {{ entry.date.strftime('%b %Y') }}</th>
-              <td class="number">{{ entry.weight_kg | weight(settings.weight_unit) if entry.weight_kg is not none else '' }}</td>
-              <td class="number">{{ entry.calories | energy(settings.energy_unit) if entry.calories is not none else '' }}</td>
-              <td class="actions">
-                <a href="/?date={{ entry.date.isoformat() }}" aria-label="Edit {{ entry.date.isoformat() }}">Edit</a>
-                <form method="post" action="/entries/{{ entry.date.isoformat() }}/delete">
-                  <button type="submit" aria-label="Delete {{ entry.date.isoformat() }}">Delete</button>
-                </form>
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% else %}
-    <p>No entries yet. Log your first weight or calorie total above.</p>
+  <div class="today-top">
+    {% include "_hero.html" %}
+    <section class="log" aria-labelledby="log-heading">
+      {% include "_log_form.html" %}
+    </section>
+  </div>
+  {% if dashboard.has_entries %}
+    {% include "_stats.html" %}
+    {% include "_chart.html" %}
   {% endif %}
 {% endblock %}

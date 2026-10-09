@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}History · TDEE Tracker{% endblock %}
+
+{% block content %}
+  <h1>History</h1>
+  <p>{{ entry_count }} {{ 'entry' if entry_count == 1 else 'entries' }}</p>
+  {% if recent_entries %}
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th scope="col">Date</th><th scope="col" class="number">Weight ({{ settings.weight_unit.value }})</th><th scope="col" class="number">Calories ({{ settings.energy_unit.value }})</th><th scope="col">Actions</th></tr></thead>
+        <tbody>
+          {% for entry in recent_entries %}
+            <tr>
+              <th scope="row">{{ entry.date.strftime('%a') }} {{ entry.date.day }} {{ entry.date.strftime('%b %Y') }}</th>
+              <td class="number">{{ entry.weight_kg | weight(settings.weight_unit) if entry.weight_kg is not none else '' }}</td>
+              <td class="number">{{ entry.calories | energy(settings.energy_unit) if entry.calories is not none else '' }}</td>
+              <td class="actions">
+                <a href="/?date={{ entry.date.isoformat() }}" aria-label="Edit {{ entry.date.isoformat() }}">Edit</a>
+                <form method="post" action="/entries/{{ entry.date.isoformat() }}/delete">
+                  <button type="submit" aria-label="Delete {{ entry.date.isoformat() }}">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p>No entries yet. <a href="/">Log your first weight or calorie total</a>.</p>
+  {% endif %}
+{% endblock %}
