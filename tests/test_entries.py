@@ -9,6 +9,7 @@ from tdee_calculator.calc import DayLog
 from tdee_calculator.db import make_engine, run_migrations
 from tdee_calculator.entries import (
     all_day_logs,
+    all_entries,
     delete_entry,
     get_entry,
     recent_entries,
@@ -101,6 +102,17 @@ def test_recent_entries_orders_and_limits(session) -> None:
         date(2026, 10, 7),
     ]
     assert len(recent_entries(session)) == 30
+
+
+def test_all_entries_returns_every_row_oldest_first(session) -> None:
+    assert all_entries(session) == []
+    for offset in range(35):
+        upsert_entry(session, EntryInput(DAY - timedelta(days=offset), None, 0))
+    rows = all_entries(session)
+    assert [row.date for row in rows] == [
+        DAY - timedelta(days=offset) for offset in reversed(range(35))
+    ]
+    assert all(row.calories == 0 and row.weight_kg is None for row in rows)
 
 
 def test_all_day_logs_converts_rows_oldest_first(session) -> None:

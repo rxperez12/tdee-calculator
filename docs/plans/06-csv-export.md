@@ -71,8 +71,10 @@ def entries_csv(entries: Iterable[Entry]) -> str:
   for real files opened with `open`. A `StringIO` doesn't translate newlines.)
 - `None` → `""`. Dates and timestamps use `.isoformat()` with the default precision;
   preserve nonzero microseconds in both `created_at` and `updated_at`.
-  The writer turns floats into text with `repr`, which is the shortest form that
+  The writer turns floats into text with `str`, which is the shortest form that
   round-trips. Don't format them by hand.
+- Map the `calories_kcal` column to `Entry.calories`; the unit-qualified name is
+  the CSV header, not a model attribute.
 - Module docstring: the formula-injection note from the decisions table.
 
 ### 3. Route
@@ -104,40 +106,41 @@ attribute is a hint. `Content-Disposition` is what makes it a download.
 
 `test_export.py` (pure, building `Entry` objects without a database):
 
-- [ ] No entries → exactly the header line, `"date,weight_kg,calories_kcal,source,created_at,updated_at\r\n"`.
-- [ ] One full entry → the header plus the row
+- [x] No entries → exactly the header line, `"date,weight_kg,calories_kcal,source,created_at,updated_at\r\n"`.
+- [x] One full entry → the header plus the row
       `2026-10-08,80.5,2100,manual,2026-10-08T08:00:00,2026-10-08T09:30:00`.
-- [ ] Nonzero microseconds → `created_at = 2026-10-08T08:00:00.123456` and
+- [x] Nonzero microseconds → `created_at = 2026-10-08T08:00:00.123456` and
       `updated_at = 2026-10-08T09:30:00.654321` export exactly as shown. Parsing
       each field with `datetime.fromisoformat()` reproduces its original value exactly.
-- [ ] Weight only and calories only → the missing field is empty (`2026-10-07,80.5,,manual,...`),
+- [x] Weight only and calories only → the missing field is empty (`2026-10-07,80.5,,manual,...`),
       not `0` or `None`.
-- [ ] `weight_kg = 180 * 0.45359237` (180 lb) → parsing the field back with `float()`
+- [x] `weight_kg = 180 * 0.45359237` (180 lb) → parsing the field back with `float()`
       equals the stored value exactly. Assert `==`, not `approx`, because exact round-trip
       is the behavior under test.
-- [ ] Rows come out in the order given (the query, not this function, decides the order).
+- [x] Rows come out in the order given (the query, not this function, decides the order).
+- [x] A stored calorie total of `0` exports as `0`, distinct from a missing total.
 
 `test_entries.py`:
 
-- [ ] `all_entries` returns entries oldest first.
+- [x] `all_entries` returns entries oldest first.
 
 `test_history_routes.py`, or add to the existing History tests (the `client` fixture,
 real DB). Parse the body with `csv.reader(io.StringIO(response.text))` instead of
 comparing long strings:
 
-- [ ] Empty DB → 200, `text/csv; charset=utf-8`, and only the header row.
-- [ ] `Content-Disposition` is `attachment; filename="tdee-entries-2026-10-08.csv"`
+- [x] Empty DB → 200, `text/csv; charset=utf-8`, and only the header row.
+- [x] `Content-Disposition` is `attachment; filename="tdee-entries-2026-10-08.csv"`
       (the fixture's fixed today).
-- [ ] `nosniff` and `no-store` headers are present.
-- [ ] Three entries saved out of order through `POST /entries` → rows oldest first,
+- [x] `nosniff` and `no-store` headers are present.
+- [x] Three entries saved out of order through `POST /entries` → rows oldest first,
       with the values saved.
-- [ ] 35 entries saved through `POST /entries` → all 35 data rows are exported,
+- [x] 35 entries saved through `POST /entries` → all 35 data rows are exported,
       oldest first, with the expected oldest and newest dates. This must exceed
       History's 30-entry display limit to catch reuse of `recent_entries`.
-- [ ] Settings set to lb/kJ, then a weight saved in lb → the export still has the
+- [x] Settings set to lb/kJ, then a weight saved in lb → the export still has the
       kg value and kcal calories.
-- [ ] `GET /entries.csv` with `Host: evil.example` → 400.
-- [ ] `GET /history` contains a link to `/entries.csv`.
+- [x] `GET /entries.csv` with `Host: evil.example` → 400.
+- [x] `GET /history` contains a link to `/entries.csv`.
 
 ## Verify by hand
 
@@ -157,6 +160,19 @@ touches the real `data/`.
 ## Afterwards
 
 - Roadmap: tick milestone 6 in Status. v1 is then complete.
+
+## Verification results (2026-10-09)
+
+- `./check.sh`: formatting, lint, strict types, and all 518 tests passed;
+  branch coverage is 99.93%.
+- Started `./run.sh` on a separate port with `TDEE_DATA_DIR` pointing to a
+  temporary database containing 116 fake entries.
+- Chromium: clicking Download CSV saved `tdee-entries-2026-10-09.csv` and kept
+  History open. All entries were present, oldest first, with blank missing values.
+- Changed display units to lb/kJ in the browser; the downloaded bytes were identical.
+- LibreOffice headless CSV import into a spreadsheet verified six columns, all
+  116 data rows, ISO-formatted dates in ascending order, and preserved blank fields
+  and weight/calorie values. Excel was not tested separately.
 
 ## Not in this milestone
 

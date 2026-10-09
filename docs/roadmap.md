@@ -24,7 +24,7 @@ Milestone 2 has no dependencies and can be done any time before 5.
 - [x] 3. Entry
 - [x] 4. Settings
 - [x] 5. Dashboard and chart
-- [ ] 6. CSV export
+- [x] 6. CSV export
 
 ## Notes
 
