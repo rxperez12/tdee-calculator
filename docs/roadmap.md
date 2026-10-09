@@ -1,7 +1,6 @@
 # Roadmap
 
-Build order for v1 of the TDEE tracker. Feature details live in the requirements
-doc; this file covers sequencing only. Each milestone gets its own detailed plan in
+Build order for the TDEE tracker, including the Phase 2 wishlist. Each milestone gets its own detailed plan in
 `docs/plans/`, written just before work on it starts, and ships as one branch / PR.
 
 ## Milestones
@@ -60,8 +59,131 @@ Milestone 2 has no dependencies and can be done any time before 5.
   local time from `clock.py`, the only module that reads the clock. Revisit (store UTC
   and convert for display) only if the app is ever hosted for users in other time zones.
 
-## Nice-to-haves (after v1)
+## Phase 2: personal measurements, statistics, and experiments
+
+Direction agreed on October 8, 2026: a single-user app run locally at home,
+potentially shared as open source for others to run themselves. Personal statistics
+and experiments are central features. Hosted accounts and a multi-user service are
+outside this roadmap; future integrations use each installation's own permissions
+or credentials where supported.
+
+**Next feature: body measurements and estimated body fat (P2.1).** The remaining v1
+CSV export stays open and can ship independently; it does not block measurements.
+The order below is proposed sequencing for the wishlist, not implementation approval
+for every item. Dependencies refer to Phase 2 milestones unless stated otherwise.
+
+### Proposed milestones
+
+| ID | Milestone | Done when | Depends on |
+| --- | --- | --- | --- |
+| P2.1 | **Body measurements and body-fat estimates** | Dated sessions support circumference entry/edit/delete, measurement instructions, one documented tape-based estimate, raw-measurement and estimate history, and manually recorded external body-fat results with their source. | Existing entry/settings foundations |
+| P2.2 | **Calendar and logging completeness** | Month view distinguishes weight only, calories only, both, and missing entries; a day opens its records for editing. Measurement sessions appear separately, and incomplete days are easy to find. | P2.1 for measurement markers |
+| P2.3 | **Personal statistics and lifetime history** | All-time, monthly, rolling, and custom-range views show logging coverage, milestones, weight/measurement changes, intake summaries, and period comparisons with their sample counts. | P2.1 |
+| P2.4 | **Phases, notes, and goal history** | Named cut/maintenance/gain or custom phases preserve dates and goals; notes and optional consistently defined daily ratings provide context for charts and comparisons. | P2.2–P2.3 |
+| P2.5 | **Activity import and provenance** | A verified Garmin export format can be previewed and imported, with workout type/time/duration and available daily activity measures; repeated imports do not duplicate records, and sources and missing fields remain visible. | P2.3 |
+| P2.6 | **Exercise-versus-weight explorer** | Activity, intake, weight trend, and circumference changes can be compared across periods and exercise types, with daily/weekly summaries, lagged comparisons, and saved views. | P2.3–P2.5 |
+| P2.7 | **Personal experiment notebook** | A planned experiment records its question, routine, primary outcome, baseline, schedule, adherence, and review; calendar markers and results connect to supporting data. Retrospective comparisons are labeled separately. | P2.4–P2.6 |
+| P2.8 | **Ongoing Health Connect synchronization** | A feasibility check verifies actual Garmin-shared records; an Android companion can pair with the local app and perform a manual sync with status, retry, update, and deletion handling. | P2.5 |
+| P2.9 | **Equation and estimation explorer** | Supported body-fat and TDEE methods can be compared with their required inputs and assumptions; users preview target changes before choosing an active TDEE method. | P2.1, P2.3 |
+| P2.10 | **AI-ready reports and richer exports** | A previewable report exports a selected period, phase, or experiment with records, units, sources, methods, and missing-data context; personal details are selectable and source restrictions respected. | v1 CSV export; P2.3; P2.7 for experiment reports |
+
+All Phase 2 milestones are unstarted. P2.8–P2.10 may move earlier when their
+prerequisites and usefulness justify it. Detailed acceptance criteria belong in
+each milestone's implementation plan.
+
+### Measurements: first increment
+
+- Log waist/abdomen, neck, and hips independently of daily weight/calorie entry;
+  allow optional repeated readings within a session. Additional sites such as arms,
+  chest, and thighs are extensions rather than required inputs for every estimate.
+- Start with one documented circumference method. The traditional Navy method is
+  the leading candidate; verify the original spreadsheet equation before claiming
+  parity. Record measurement locations explicitly and give consistent instructions.
+- Preserve raw measurements and the calculation method. Show the date of the
+  estimate; do not present an old measurement as a new daily reading.
+- Keep tape estimates and external scale/scan readings as separate method histories.
+  Do not average methods into an assumed more accurate body-fat value.
+- Show BMI and waist-to-height ratio as optional context, clearly separate from
+  body-fat percentage. Estimated fat/fat-free mass is a later option requiring a
+  suitable contemporaneous weight; fat-free mass must not be called muscle mass.
+- RFM is a candidate second equation, subject to its own measurement protocol.
+  Skinfold equations are optional later work if caliper logging is actually useful.
+
+### Statistics and experiments
+
+- Prioritize **exercise versus weight**, with circumference changes as additional
+  outcomes. Start with descriptive summaries and period comparisons, then add
+  relationships and experiments as the supporting data becomes available.
+- Include averages, medians, distributions, variability, rolling trends, logging
+  consistency, lifetime milestones, and weekly/monthly recaps where meaningful.
+  Every result identifies its time range and available observations.
+- Keep unknown data distinct from zero, a rest day, or a completed measurement.
+  Calendar days before tracking began and future days are not missed logs; optional
+  measurement sessions do not make every unmeasured day incomplete.
+- Compare activity alongside recorded intake and phase context. Show associations
+  without declaring causation or inferring muscle gain/fat loss from weight alone.
+- Distinguish exploratory patterns from questions specified before an experiment.
+  Account for repeated/time-dependent observations and multiple comparisons when
+  designing statistical inference; avoid interpreting a correlation between a
+  derived estimate and its own inputs as independent evidence.
+- Preserve the original experiment plan and subsequent amendments. Results may be
+  inconclusive; small changes and missing data should remain visible rather than
+  being turned into confident success/failure labels.
+- An initial experiment could compare a usual-routine baseline with a planned
+  walking routine, tracking completion, activity, intake, weight, and measurements.
+  Its duration and primary outcome are decisions for the experiment setup.
+
+### Integration and AI boundaries
+
+- Garmin file import is the proposed first route, with supported fields determined
+  from a real sample export. Health Connect is the candidate ongoing route and
+  needs an Android reader/companion; the desktop app cannot query it directly.
+- Begin with manual **Sync now** over the home network. Background sync is a later
+  convenience. Plan pairing/access control, source deduplication, corrections,
+  deletions, time zones, and unavailable history before enabling synchronization.
+- Keep imported workout calories separate from log-derived TDEE; adding them on
+  top would double-count expenditure already reflected in the estimate.
+- Provider access is a feasibility gate. Personal use or an individual API key
+  does not automatically remove provider restrictions. Recheck current Garmin and
+  Strava terms before choosing a direct API; Strava is not the assumed analytics
+  source for this roadmap.
+- AI reports should distinguish recorded, imported, and calculated values and
+  include assumptions and gaps. Start with Markdown/copy and CSV/JSON export;
+  an embedded chatbot is optional later work.
+- Optional local progress photos can support side-by-side comparison. A specialized
+  photo body-fat model is research work requiring model-specific validation,
+  especially for tracking change over time. General-purpose visual guesses should
+  not become authoritative body-fat readings or automatically change calorie targets.
+- Activity-informed suggestions and automatic target adaptation remain exploratory;
+  validate them against later observations before allowing automatic changes.
+
+### Later wishlist
+
+- Yearly calendar heatmap, richer milestones, and configurable recap views.
+- Additional circumference sites, caliper methods, and external assessment imports.
+- Local progress-photo sessions and optional validated photo estimation.
+- Background Health Connect sync and additional data sources.
+- Prediction-versus-outcome reviews and repeated experiments.
+- More advanced model comparisons and optional activity-informed suggestions.
+
+### Research references
+
+These informed the brainstorm; recheck method protocols, provider terms, and device
+support during planning rather than treating them as permanent guarantees.
+
+- [Traditional Navy circumference protocol](https://www.netc.navy.mil/Portals/46/NSTC/NROTC/docs/Guide%204-Body%20Composition%20Assessment%20%28BCA%29%20%28MAR%202021%29.pdf)
+- [RFM development and validation](https://pubmed.ncbi.nlm.nih.gov/30030479/)
+- [Specialized smartphone-photo model validation](https://www.nature.com/articles/s41746-022-00628-3)
+- [Garmin data exports](https://support.garmin.com/en-US/?faq=W1TvTPW8JZ6LfJSfK512Q8)
+- [Garmin sharing with Health Connect](https://support.garmin.com/en-GB/?faq=JToBEy0jfe6pIygark2Ui5)
+- [Health Connect read access and history](https://developer.android.com/health-and-fitness/health-connect/read-data)
+- [Health Connect synchronization](https://developer.android.com/health-and-fitness/health-connect/sync-data)
+- [Garmin developer program eligibility](https://developer.garmin.com/gc-developer-program/program-faq/)
+- [Strava API policy](https://www.strava.com/legal/api_policy)
+
+## Other deferred ideas
 
 - One-time spreadsheet import (weekly grid `.xlsx`, typed values only, `source = 'spreadsheet'`).
-- Postgres, if the hosting reach goal brings multiple users (see the SQLite decision above).
-- Everything under "Reach goals" in the requirements doc.
+- The older Postgres/multi-user reach goal is outside the current personal-use scope.
+- Older requirements-document reach goals must be reassessed against the Phase 2
+  direction before being scheduled.
