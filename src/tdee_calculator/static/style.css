@@ -12,6 +12,16 @@
   --chart-goal: #52514e;
   --chart-grid: #e1e0d9;
   --chart-text: #52514e;
+  /* One accent, plus status colors that always come with an arrow or a word. */
+  --accent: #1c5cab;
+  --accent-soft: #eaf2fc;
+  --link: #1c5cab;
+  --good: #006300;
+  --good-soft: #e5f3e5;
+  --warn: #8a5300;
+  --warn-soft: #fdf1d6;
+  --bad: #b42318;
+  --bad-soft: #fbe8e6;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -25,6 +35,15 @@
     --chart-goal: #c3c2b7;
     --chart-grid: #2c2c2a;
     --chart-text: #c3c2b7;
+    --accent: #1c5cab;
+    --accent-soft: #15253a;
+    --link: #86b6ef;
+    --good: #5fd35f;
+    --good-soft: #12301a;
+    --warn: #fab219;
+    --warn-soft: #3a2c0c;
+    --bad: #ff8a80;
+    --bad-soft: #3d1715;
   }
 }
 
@@ -41,6 +60,10 @@ main {
 
 main.wide {
   width: min(60rem, calc(100% - 2rem));
+}
+
+a {
+  color: var(--link);
 }
 
 :focus-visible {
@@ -254,11 +277,6 @@ th, td {
   color: var(--text-muted);
 }
 
-.tile-note.stale {
-  color: var(--text);
-  font-weight: 600;
-}
-
 .chart-section {
   margin-top: 2.5rem;
 }
@@ -350,22 +368,111 @@ th, td {
   }
 }
 
+/* Small pieces */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .tag {
   display: inline-block;
-  margin-inline-start: 0.4rem;
-  padding: 0.1rem 0.5rem;
-  border: 1px solid var(--border);
+  margin-inline-start: 0.3rem;
+  padding: 0.05rem 0.45rem;
   border-radius: 999px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   vertical-align: middle;
+}
+
+.tag.warn {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.badge {
+  display: inline-block;
+  margin: 0.25rem 0;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: color-mix(in srgb, var(--text-muted) 12%, transparent);
   color: var(--text-muted);
 }
 
-.help .tag {
-  margin-inline: 0 0.3rem;
+.badge.good {
+  background: var(--good-soft);
+  color: var(--good);
 }
 
-.movement {
-  color: var(--text);
+.badge.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.good-text {
+  color: var(--good);
+}
+
+.warn-text {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.muted {
+  opacity: 0.85;
+}
+
+.fine {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.notice.warn {
+  background: var(--warn-soft);
+  border-color: var(--warn);
+  border-radius: 0 0.4rem 0.4rem 0;
+}
+
+/* Accent: hero, primary buttons, current nav and range */
+
+.hero {
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--accent-soft);
+}
+
+.hero .hero-value {
+  color: var(--link);
+}
+
+button[type="submit"]:not(.actions button) {
+  border: 1px solid var(--accent);
+  border-radius: 0.4rem;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button[type="submit"]:not(.actions button):hover {
+  filter: brightness(1.1);
+}
+
+nav [aria-current="page"] {
+  color: var(--link);
+}
+
+.range a[aria-current="true"],
+.range a[aria-current="true"]:hover {
+  background: var(--accent);
+  color: #fff;
 }

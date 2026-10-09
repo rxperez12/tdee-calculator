@@ -3,61 +3,57 @@
 {% set estimate = dashboard.estimate %}
 {% set progress = dashboard.progress %}
 {% set goal = dashboard.goal %}
+{% set rate = dashboard.rate_kg_per_week %}
+{% macro early() %}<span class="tag warn">Early</span>{% endmacro %}
 <div class="tiles">
   <section class="tile" aria-labelledby="tdee-heading">
-    <h2 id="tdee-heading">TDEE</h2>
+    <h2 id="tdee-heading">TDEE {% if dashboard.estimate_early %}{{ early() }}{% endif %}</h2>
     {% if dashboard.target is state("EstimateInvalid") %}
       <p class="tile-value">—</p>
-      <p class="tile-note">See the note above.</p>
+      <p class="tile-note">Check your entries</p>
     {% elif estimate is not none %}
-      <p class="tile-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }}</span>{% if dashboard.estimate_early %} <span class="tag">Early estimate</span>{% endif %}</p>
-      <p class="tile-note">{{ {'logs': 'From your logs', 'blend': 'Logs + formula', 'formula': 'Formula estimate'}[estimate.method] }}</p>
+      <p class="tile-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }}</span></p>
+      {% set method = {'logs': 'From logs', 'blend': 'Logs + formula', 'formula': 'Formula'}[estimate.method] %}
       {% if dashboard.days_to_full_logs %}
-        <p class="tile-note">Fully from your logs after {{ dashboard.days_to_full_logs }} more {{ 'day' if dashboard.days_to_full_logs == 1 else 'days' }} of logging.</p>
+        <p class="tile-note">{{ method }} · logs only in {{ dashboard.days_to_full_logs }} {{ 'day' if dashboard.days_to_full_logs == 1 else 'days' }}</p>
+      {% elif estimate.logged is not none %}
+        <p class="tile-note">{{ method }} · {{ estimate.logged.calorie_days }}/{{ estimate.logged.span_days }} days logged</p>
+      {% else %}
+        <p class="tile-note">{{ method }}</p>
       {% endif %}
     {% else %}
       <p class="tile-value">—</p>
+      {% if dashboard.missing_body_stats %}
+        <p class="tile-note"><a href="/settings">Add body stats</a> for an estimate now</p>
+      {% endif %}
     {% endif %}
-    {% if estimate is not none and estimate.logged is not none %}
-      {% set logged = estimate.logged %}
-      <p class="tile-note">
-        {{ logged.calorie_days }} logged, {{ logged.imputed_days }} estimated ·
-        {{ logged.start_date | short_date(today) }}–{{ logged.end_date | short_date(today) }}
-      </p>
-    {% elif dashboard.target is not state("EstimateInvalid") %}
-      {% set weigh_ins_done = progress.weigh_ins >= dashboard.weigh_ins_needed and progress.span_days >= dashboard.span_needed %}
-      {% if weigh_ins_done %}
-        <p class="tile-note">Weigh-ins are enough. Log calories on {{ progress.calorie_days_needed - progress.calorie_days }} more days to estimate from your logs.</p>
-      {% else %}
-        <p class="tile-note">
-          Toward your own estimate: {{ progress.weigh_ins }} of {{ dashboard.weigh_ins_needed }} weigh-ins ·
-          {{ progress.span_days }} of {{ dashboard.span_needed }} days{% if progress.span_days %} · calories on {{ progress.calorie_days }} of {{ progress.calorie_days_needed }} days needed{% endif %}
-        </p>
+    {% if estimate is none or estimate.logged is none %}
+      {% if progress.weigh_ins >= dashboard.weigh_ins_needed and progress.span_days >= dashboard.span_needed %}
+        <p class="tile-note">Log calories on {{ progress.calorie_days_needed - progress.calorie_days }} more days</p>
+      {% elif dashboard.target is not state("EstimateInvalid") %}
+        <p class="tile-note">{{ progress.weigh_ins }}/{{ dashboard.weigh_ins_needed }} weigh-ins · {{ progress.span_days }}/{{ dashboard.span_needed }} days</p>
       {% endif %}
-      {% if estimate is none and dashboard.missing_body_stats %}
-        <p class="tile-note"><a href="/settings">Add your body stats</a> for a formula estimate in the meantime.</p>
-      {% endif %}
+    {% endif %}
+    {% if dashboard.formula_tdee is not none and estimate is not none and estimate.method != 'formula' %}
+      <p class="tile-note muted">Formula: {{ dashboard.formula_tdee | energy_display(energy) }} {{ energy.value }}</p>
     {% endif %}
   </section>
 
   <section class="tile" aria-labelledby="trend-heading">
-    <h2 id="trend-heading">Trend weight</h2>
+    <h2 id="trend-heading">Trend weight {% if dashboard.trend_early %}{{ early() }}{% endif %}</h2>
     {% if dashboard.trend_kg is none %}
       <p class="tile-value">—</p>
-      <p class="tile-note">No weigh-ins yet.</p>
+      <p class="tile-note">No weigh-ins yet</p>
     {% else %}
-      <p class="tile-value">{{ dashboard.trend_kg | weight(weight) }} <span class="unit">{{ weight.value }}</span>{% if dashboard.trend_early %} <span class="tag">Early trend</span>{% endif %}</p>
-      {% if dashboard.trend_early %}
-        <p class="tile-note">Based on {{ dashboard.trend | length }} of {{ dashboard.weigh_ins_needed }} weigh-ins. It settles as you log more.</p>
+      <p class="tile-value">{{ dashboard.trend_kg | weight(weight) }} <span class="unit">{{ weight.value }}</span></p>
+      {% if rate is not none %}
+        <p class="tile-note"><span aria-hidden="true">{{ '↓' if rate < 0 else '↑' }}</span> {{ rate | change(weight, true) | capitalize }}</p>
       {% endif %}
-      {% if dashboard.rate_kg_per_week is not none %}
-        <p class="tile-note">{{ dashboard.rate_kg_per_week | change(weight, true) | capitalize }}</p>
+      {% if dashboard.weigh_in_stale %}
+        <p class="tile-note warn-text">Last weighed {{ dashboard.days_since_weigh_in }} days ago</p>
       {% else %}
-        <p class="tile-note">Your rate appears after {{ dashboard.weigh_ins_needed }} weigh-ins over {{ dashboard.span_needed }} days.</p>
+        <p class="tile-note">Weighed {{ 'today' if dashboard.days_since_weigh_in == 0 else dashboard.last_weigh_in | short_date(today) }}</p>
       {% endif %}
-      <p class="tile-note{% if dashboard.weigh_in_stale %} stale{% endif %}">
-        Last weigh-in {{ 'today' if dashboard.days_since_weigh_in == 0 else dashboard.last_weigh_in | short_date(today) }}{% if dashboard.weigh_in_stale %} ({{ dashboard.days_since_weigh_in }} days ago){% endif %}
-      </p>
     {% endif %}
   </section>
 
@@ -66,51 +62,37 @@
       <h2 id="goal-heading">Goal</h2>
       {% if goal is state("NoGoal") %}
         <p class="tile-value">—</p>
-        <p class="tile-note"><a href="/settings">Set a goal weight</a></p>
+        <p class="tile-note"><a href="/settings">Set a goal</a></p>
       {% elif goal is state("GoalNoWeight") %}
         <p class="tile-value">{{ goal.goal_kg | weight(weight) }} <span class="unit">{{ weight.value }}</span></p>
-        <p class="tile-note">Log a weigh-in to see how far you have to go.</p>
+        <p class="tile-note">Log a weigh-in to track it</p>
       {% elif goal is state("GoalReached") %}
-        <p class="tile-value">Reached</p>
-        <p class="tile-note">You're at your goal of {{ goal.goal_kg | weight(weight) }} {{ weight.value }}.</p>
+        <p class="tile-value good-text">Reached</p>
+        <p class="tile-note">{{ goal.goal_kg | weight(weight) }} {{ weight.value }}</p>
       {% else %}
         {% set remaining = goal.eta.remaining_kg if goal is state("GoalOnTrack") else goal.remaining_kg %}
         <p class="tile-value">{{ remaining | abs | weight(weight) }} <span class="unit">{{ weight.value }} to go</span></p>
-        <p class="tile-note">to {{ goal.goal_kg | weight(weight) }} {{ weight.value }}</p>
-        {% set rate = dashboard.rate_kg_per_week %}
-        {% if dashboard.movement == 'steady' %}
-          <p class="tile-note movement"><span aria-hidden="true">→</span> No significant change lately</p>
-        {% elif dashboard.movement %}
-          <p class="tile-note movement">
-            <span aria-hidden="true">{{ '↓' if rate < 0 else '↑' }}</span>
-            {{ 'Down' if rate < 0 else 'Up' }} {{ rate | abs | rate(weight) }} {{ weight.value }} a week, {{ 'toward' if dashboard.movement == 'toward' else 'away from' }} your goal
-          </p>
-        {% else %}
-          <p class="tile-note">Direction appears after {{ dashboard.weigh_ins_needed }} weigh-ins over {{ dashboard.span_needed }} days.</p>
+        {% if dashboard.movement == 'toward' %}
+          <p class="badge good"><span aria-hidden="true">{{ '↓' if rate < 0 else '↑' }}</span> Toward goal</p>
+        {% elif dashboard.movement == 'away' %}
+          <p class="badge bad"><span aria-hidden="true">{{ '↓' if rate < 0 else '↑' }}</span> Away from goal</p>
+        {% elif dashboard.movement == 'steady' %}
+          <p class="badge"><span aria-hidden="true">→</span> Steady</p>
         {% endif %}
         {% if goal is state("GoalOnTrack") %}
           {% set weeks = goal.eta.weeks | round | int %}
+          <p class="tile-note">{{ goal.goal_kg | weight(weight) }} {{ weight.value }} by {{ goal.eta.date | short_date(today) }} · {{ 'under 1 week' if weeks < 1 else '~' ~ weeks ~ ' wk' }} at target rate</p>
+        {% else %}
           <p class="tile-note">
-            {{ 'Under a week' if weeks < 1 else 'About ' ~ weeks ~ (' week' if weeks == 1 else ' weeks') }} ·
-            {{ goal.eta.date | short_date(today) }} if you keep this rate
+            {{ goal.goal_kg | weight(weight) }} {{ weight.value }} ·
+            {% if goal is state("GoalNoRate") %}<a href="/settings">set a rate</a> for a date
+            {% elif goal is state("GoalAway") %}your target rate <a href="/settings">points away</a>
+            {% elif goal is state("GoalNoSafeTarget") %}see the note above
+            {% elif goal is state("GoalTooSlow") %}10+ years at this rate
+            {% endif %}
           </p>
-        {% elif goal is state("GoalNoRate") %}
-          <p class="tile-note"><a href="/settings">Set a rate</a> to see when you'd get there.</p>
-        {% elif goal is state("GoalAway") %}
-          <p class="tile-note">Your rate moves away from your goal. <a href="/settings">Check Settings</a>.</p>
-        {% elif goal is state("GoalNoSafeTarget") %}
-          <p class="tile-note">See the note above.</p>
-        {% elif goal is state("GoalTooSlow") %}
-          <p class="tile-note">More than 10 years away at this rate. <a href="/settings">Check Settings</a>.</p>
         {% endif %}
       {% endif %}
     </section>
   {% endif %}
 </div>
-{% if dashboard.has_entries %}
-  {% if dashboard.formula_tdee is not none %}
-    <p class="help">Formula estimate: {{ dashboard.formula_tdee | energy_display(energy) }} {{ energy.value }} (Mifflin-St Jeor × {{ settings.activity.name | lower }} activity), for reference.</p>
-  {% elif dashboard.missing_body_stats %}
-    <p class="help"><a href="/settings">Add {{ dashboard.missing_body_stats | join(', ') }} in Settings</a> to see a formula estimate.</p>
-  {% endif %}
-{% endif %}

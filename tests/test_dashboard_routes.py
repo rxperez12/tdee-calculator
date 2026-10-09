@@ -48,7 +48,7 @@ def chart_data(html):
 
 def test_empty_database_shows_onboarding_only(client):
     page = client.get("/").text
-    assert "Log your first weigh-in to get started" in page
+    assert "Log your first weigh-in." in page
     assert 'id="tdee-heading"' not in page
     assert 'id="chart"' not in page
     assert "chart.umd.min.js" not in page
@@ -59,8 +59,7 @@ def test_logged_tdee_and_target(client, config):
     page = client.get("/").text
     tdee = section(page, "tdee-heading")
     assert "2,550 kcal" in tdee
-    assert "From your logs" in tdee
-    assert "28 logged, 0 estimated" in tdee
+    assert "From logs · 28/28 days logged" in tdee
     hero = section(page, "hero-heading")
     assert "2,000 kcal today" in hero
     assert "to lose 0.50 kg a week" in hero
@@ -86,7 +85,8 @@ def test_units_convert_and_targets_round_up(client, config):
 def test_rate_away_from_goal(client, config):
     seed(config, linear_logs(), Settings(goal_weight_kg=90, rate_kg_per_week=-0.5))
     goal = section(client.get("/").text, "goal-heading")
-    assert "Your rate moves away from your goal" in goal
+    assert "your target rate points away" in goal
+    assert "Away from goal" in goal
     assert 'href="/settings"' in client.get("/").text
     assert "if you keep this rate" not in goal
 
@@ -94,7 +94,7 @@ def test_rate_away_from_goal(client, config):
 def test_goal_on_track(client, config):
     seed(config, linear_logs(), Settings(goal_weight_kg=70, rate_kg_per_week=-0.5))
     page = client.get("/").text
-    assert "if you keep this rate" in section(page, "goal-heading")
+    assert "at target rate" in section(page, "goal-heading")
     assert len(chart_data(page)["projection"]) == 2
     assert "Projected" in page
 
@@ -102,7 +102,7 @@ def test_goal_on_track(client, config):
 def test_stale_weigh_in(client, config):
     seed(config, [DayLog(TODAY - timedelta(days=5), 80.0, 2000)])
     trend = section(client.get("/").text, "trend-heading")
-    assert "Last weigh-in Sat 3 Oct (5 days ago)" in trend
+    assert "Last weighed 5 days ago" in trend
 
 
 def test_floor_hides_unsafe_target_in_kilojoules(client, config):
@@ -119,11 +119,11 @@ def test_floor_hides_unsafe_target_in_kilojoules(client, config):
     assert "3,750" not in page
     assert "3,800" not in page
     # 1,200 kcal = 5,020.8 kJ, rounded up so it never reads below the floor.
-    assert "under 5,050 kJ a day" in hero
+    assert "eating under 5,050 kJ" in hero
     # (1,200 - 2,550) * 7 / 7,700 = -1.227..., truncated to 1.22.
-    assert "fastest loss that stays at or above that is 1.22 kg a week" in hero
-    assert "guardrail, not medical advice" in hero
-    assert "See the note above" in section(page, "goal-heading")
+    assert "Try 1.22 kg/week or slower" in hero
+    assert "A guardrail, not medical advice." in hero
+    assert "see the note above" in section(page, "goal-heading")
     assert chart_data(page)["projection"] == []
 
 
@@ -144,7 +144,7 @@ def test_tiny_rate_does_not_crash(client, config):
     )
     response = client.get("/")
     assert response.status_code == 200
-    assert "More than 10 years away" in section(response.text, "goal-heading")
+    assert "10+ years at this rate" in section(response.text, "goal-heading")
 
 
 def test_calorie_only_entries(client, config):
@@ -155,12 +155,21 @@ def test_calorie_only_entries(client, config):
     assert 'id="weight-chart"' not in page
 
 
-def test_formula_line_and_missing_stats(client, config):
+def test_missing_body_stats_link(client, config):
     seed(config, [DayLog(TODAY, 70.0, None)])
-    assert (
-        "Add sex, height, birth date, activity level in Settings"
-        in client.get("/").text
+    tdee = section(client.get("/").text, "tdee-heading")
+    assert "Add body stats for an estimate now" in tdee
+
+
+def test_formula_shown_beside_a_logged_estimate(client, config):
+    body = Settings(
+        sex=Sex.FEMALE,
+        height_cm=165.0,
+        birth_date=date(1990, 10, 8),
+        activity=ActivityLevel.MODERATE,
     )
+    seed(config, linear_logs(), body)
+    assert "Formula:" in section(client.get("/").text, "tdee-heading")
 
 
 def test_invalid_post_still_renders_dashboard(client, config):
@@ -198,7 +207,7 @@ def test_range_links(client, config):
 def test_caption_and_json_escaping(client, config):
     seed(config, linear_logs(), Settings(goal_weight_kg=70, rate_kg_per_week=-0.5))
     page = client.get("/?range=4w").text
-    caption = page[page.index("<figcaption>") : page.index("</figcaption>")]
+    caption = page[page.index("<figcaption") : page.index("</figcaption>")]
     assert "Trend " in caption
     assert "over the last 4 weeks" in caption
     assert "Goal 70.0 kg." in caption
@@ -241,11 +250,11 @@ def test_one_day_of_data_is_marked_early(client, config):
     )
     seed(config, [DayLog(TODAY, 70.0, None)], body)
     page = client.get("/").text
-    assert "Early estimate" in section(page, "tdee-heading")
-    assert "Early estimate" in section(page, "hero-heading")
+    assert "Early" in section(page, "tdee-heading")
+    assert "Early" in section(page, "hero-heading")
     trend = section(page, "trend-heading")
-    assert "Early trend" in trend
-    assert "Based on 1 of 10 weigh-ins" in trend
+    assert "Early" in trend
+    assert "1/10 weigh-ins" in section(page, "tdee-heading")
     # The chart axis starts a week (plus a day of room) back, not 3 months back.
     assert chart_data(page)["start"] == "2026-09-30"
     assert "One weigh-in so far: 70.0 kg on Thu 8 Oct." in page
@@ -260,17 +269,26 @@ def test_settled_estimate_and_trend_are_not_marked_early(client, config):
 def test_goal_shows_direction(client, config):
     seed(config, linear_logs(), Settings(goal_weight_kg=70, rate_kg_per_week=-0.5))
     goal = section(client.get("/").text, "goal-heading")
-    assert "Down 0.50 kg a week, toward your goal" in goal
+    assert "Toward goal" in goal
+    assert 'class="badge good"' in goal_html(client)
 
 
 def test_goal_direction_waits_for_enough_data(client, config):
     seed(config, [DayLog(TODAY, 80.0, None)], Settings(goal_weight_kg=70))
     goal = section(client.get("/").text, "goal-heading")
-    assert "Direction appears after 10 weigh-ins over 21 days" in goal
+    # One weigh-in: no rate yet, so no direction badge at all.
+    assert "10.0 kg to go" in goal
+    assert "badge" not in goal_html(client)
 
 
 def test_caption_says_since_when_data_is_shorter_than_range(client, config):
     seed(config, linear_logs(14))
     page = client.get("/").text
-    caption = page[page.index("<figcaption>") : page.index("</figcaption>")]
+    caption = page[page.index("<figcaption") : page.index("</figcaption>")]
     assert "since Thu 24 Sep" in caption
+
+
+def goal_html(client):
+    page = client.get("/").text
+    start = page.index('id="goal-heading"')
+    return page[start : page.index("</section>", start)]
