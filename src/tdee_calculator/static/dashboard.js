@@ -140,6 +140,8 @@
           y: {
             ...axis,
             title: { display: true, text: `Weight (${unit})`, color: colors.text },
+            // Headroom, so a goal at the edge of the data isn't hidden by the axis line.
+            grace: "5%",
             ticks: { ...axis.ticks, maxTicksLimit: 6 },
           },
         },

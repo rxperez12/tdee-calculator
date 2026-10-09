@@ -659,7 +659,16 @@ Where the code settled or changed something this plan left open:
 - **Template states:** Jinja can't `match`, so a `state` test checks the dataclass
   name: `{% if goal is state("GoalOnTrack") %}`.
 
+- **Added after review:** "Early estimate" tags on TDEE and the hero while the estimate
+  leans on the formula (with "Fully from your logs after N more days"), an "Early
+  trend" tag under 10 weigh-ins, a goal-direction line (↓ / ↑ / → with words, steady
+  under 0.1 kg/week), and a chart axis that starts at the first weigh-in in range, with
+  a week minimum, a little room at both ends, and y-axis headroom.
+
 ## Not in this milestone
+
+- A projection range that narrows with more data:
+  [issue #1](https://github.com/rxperez12/tdee-calculator/issues/1).
 
 - CSV export (milestone 6).
 - Changing the range without a page reload, or zoom and pan.

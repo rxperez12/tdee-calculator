@@ -354,8 +354,10 @@ def test_payload_in_pounds():
     result = build_dashboard(flat_logs(), settings, TODAY)
     payload = chart_payload(build_chart(result, settings, "4w"), WeightUnit.LB)
     assert payload["unit"] == "lb"
-    assert payload["start"] == "2026-09-10"
-    assert payload["end"] == "2026-10-15"
+    # The axis starts a day before the first weigh-in (6 Oct), not at the range
+    # (10 Sep), and ends a day after the 7-day projection cap (15 Oct).
+    assert payload["start"] == "2026-10-05"
+    assert payload["end"] == "2026-10-16"
     # 80 kg = 176.37 lb; 75 kg = 165.35 lb, each shown to 0.1.
     assert payload["weighIns"][-1] == {"x": "2026-10-08", "y": 176.4}
     assert payload["trend"][-1] == {"x": "2026-10-08", "y": 176.4}
@@ -384,3 +386,82 @@ def test_parse_range(text, expected):
 def test_min_weigh_ins_matches_calc_default():
     default = inspect.signature(calc.logged_tdee).parameters["min_weigh_ins"].default
     assert default == dashboard.MIN_WEIGH_INS
+
+
+def test_axis_starts_at_data_with_a_minimum_week():
+    one_day = build_dashboard(flat_logs(days=1), Settings(), TODAY)
+    chart = build_chart(one_day, Settings(), "3m")
+    assert chart.start == TODAY - timedelta(days=91)
+    assert chart.axis_start == TODAY - timedelta(days=8)
+    assert chart.axis_end == TODAY + timedelta(days=1)
+    two_weeks = build_chart(
+        build_dashboard(flat_logs(days=15), Settings(), TODAY), Settings(), "3m"
+    )
+    assert two_weeks.axis_start == TODAY - timedelta(days=15)
+    assert two_weeks.shorter_than_range
+    assert not build_chart(
+        build_dashboard(wavy_logs(), Settings(), TODAY), Settings(), "3m"
+    ).shorter_than_range
+
+
+def test_axis_padding_grows_with_long_ranges():
+    # 120 days of data in "all": 119 // 50 = 2 days of room at each end.
+    chart = build_chart(
+        build_dashboard(wavy_logs(), Settings(), TODAY), Settings(), "all"
+    )
+    assert chart.axis_start == TODAY - timedelta(days=121)
+    assert chart.axis_end == TODAY + timedelta(days=2)
+
+
+def test_trend_is_early_until_ten_weigh_ins():
+    assert not build_dashboard([], Settings(), TODAY).trend_early
+    assert build_dashboard(flat_logs(days=9), Settings(), TODAY).trend_early
+    assert not build_dashboard(flat_logs(days=10), Settings(), TODAY).trend_early
+
+
+@pytest.mark.parametrize(
+    "logs,body,early,days_left",
+    [
+        (flat_logs(days=5), True, True, None),  # formula only
+        (linear_logs(24), True, True, 4),  # blend while the span ramps to 28
+        (linear_logs(28), True, False, None),  # fully from logs
+        (linear_logs(24), False, False, None),  # logs only, no formula to lean on
+    ],
+)
+def test_estimate_is_early_while_it_leans_on_the_formula(logs, body, early, days_left):
+    settings = Settings(**BODY) if body else Settings()
+    result = build_dashboard(logs, settings, TODAY)
+    assert result.estimate_early is early
+    assert result.days_to_full_logs == days_left
+
+
+def test_partial_coverage_blend_is_not_early():
+    logs = linear_logs()
+    logs[0] = DayLog(logs[0].date, logs[0].weight_kg, None)
+    result = build_dashboard(logs, Settings(**BODY), TODAY)
+    assert result.estimate is not None
+    assert result.estimate.method == "blend"  # 27 of 28 calorie days
+    assert not result.estimate_early
+
+
+@pytest.mark.parametrize(
+    "kg_per_week,goal,expected",
+    [
+        (-0.5, 70, "toward"),
+        (-0.5, 90, "away"),
+        (0.5, 90, "toward"),
+        (-0.05, 70, "steady"),
+        (-0.5, None, None),
+    ],
+)
+def test_movement_relative_to_goal(kg_per_week, goal, expected):
+    logs = linear_logs(kg_per_week=kg_per_week)
+    settings = Settings(goal_weight_kg=goal, rate_kg_per_week=-0.5)
+    assert build_dashboard(logs, settings, TODAY).movement == expected
+
+
+def test_no_movement_before_the_rate_gate_or_at_the_goal():
+    settings = Settings(goal_weight_kg=70, rate_kg_per_week=-0.5)
+    assert build_dashboard(flat_logs(days=5), settings, TODAY).movement is None
+    reached = Settings(goal_weight_kg=80, rate_kg_per_week=-0.5)
+    assert build_dashboard(flat_logs(days=30), reached, TODAY).movement is None

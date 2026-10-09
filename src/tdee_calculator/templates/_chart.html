@@ -23,8 +23,12 @@
     {% set first = chart.points[0] %}
     {% set last = chart.points[-1] %}
     {% set caption -%}
+      {%- if chart.points | length == 1 -%}
+      One weigh-in so far: {{ first.weight_kg | weight(weight) }} {{ weight.value }} on {{ first.date | short_date(today) }}.
+      {%- else -%}
       Trend {{ first.trend_kg | weight(weight) }} → {{ last.trend_kg | weight(weight) }} {{ weight.value }}
-      {%- if chart.range == 'all' %} since {{ first.date | short_date(today) }}{% else %} over the last {{ range_labels[chart.range] }}{% endif %}.
+      {%- if chart.range == 'all' or chart.shorter_than_range %} since {{ first.date | short_date(today) }}{% else %} over the last {{ range_labels[chart.range] }}{% endif %}.
+      {%- endif %}
       {%- if chart.goal_kg is not none %} Goal {{ chart.goal_kg | weight(weight) }} {{ weight.value }}.{% endif %}
       {%- if chart.projection %} Projected {{ chart.projection[-1][1] | weight(weight) }} {{ weight.value }} by {{ chart.projection[-1][0] | short_date(today) }} at your target rate.{% endif %}
     {%- endset %}

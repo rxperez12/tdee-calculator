@@ -23,6 +23,7 @@
     <h2 id="hero-heading">Eat about</h2>
     <p class="hero-value">{{ target.kcal | intake_display(energy) }} <span class="unit">{{ energy.value }} today</span></p>
     <p class="hero-sub">to {{ settings.rate_kg_per_week | change(settings.weight_unit) }}</p>
+    {% if dashboard.estimate_early %}<p class="help"><span class="tag">Early estimate</span> This will change as you log more.</p>{% endif %}
   {% elif target is state("TargetBelowFloor") %}
     <h2 id="hero-heading">You burn about</h2>
     <p class="hero-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }} a day</span></p>
@@ -35,6 +36,7 @@
   {% elif estimate is not none %}
     <h2 id="hero-heading">You burn about</h2>
     <p class="hero-value">{{ estimate.tdee | energy_display(energy) }} <span class="unit">{{ energy.value }} a day</span></p>
+    {% if dashboard.estimate_early %}<p class="help"><span class="tag">Early estimate</span> This will change as you log more.</p>{% endif %}
     <p class="help"><a href="/settings">Set a goal rate in Settings</a> to get a daily target.</p>
   {% else %}
     <h2 id="hero-heading">Almost there</h2>

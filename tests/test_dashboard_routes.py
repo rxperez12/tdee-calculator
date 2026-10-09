@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from test_app import save
 from test_dashboard import linear_logs
 
-from tdee_calculator.calc import DayLog, Sex
+from tdee_calculator.calc import ActivityLevel, DayLog, Sex
 from tdee_calculator.db import make_engine
 from tdee_calculator.models import Entry
 from tdee_calculator.settings import Settings, save_settings
@@ -172,9 +172,10 @@ def test_invalid_post_still_renders_dashboard(client, config):
 
 @pytest.mark.parametrize(
     "query,start",
-    [("?range=4w", "2026-09-10"), ("?range=bogus", "2026-07-09"), ("", "2026-07-09")],
+    [("?range=4w", "2026-09-09"), ("?range=bogus", "2026-07-08"), ("", "2026-07-08")],
 )
 def test_range_selects_chart_window(client, config, query, start):
+    # The axis starts a day of room before the first weigh-in in range.
     seed(config, linear_logs(120))
     page = client.get(f"/{query}").text
     data = chart_data(page)
@@ -228,3 +229,48 @@ def test_range_without_weigh_ins(client, config):
 )
 def test_chart_scripts_are_served(client, path):
     assert client.get(path).status_code == 200
+
+
+def test_one_day_of_data_is_marked_early(client, config):
+    body = Settings(
+        sex=Sex.FEMALE,
+        height_cm=165.0,
+        birth_date=date(1990, 10, 8),
+        activity=ActivityLevel.MODERATE,
+        rate_kg_per_week=-0.5,
+    )
+    seed(config, [DayLog(TODAY, 70.0, None)], body)
+    page = client.get("/").text
+    assert "Early estimate" in section(page, "tdee-heading")
+    assert "Early estimate" in section(page, "hero-heading")
+    trend = section(page, "trend-heading")
+    assert "Early trend" in trend
+    assert "Based on 1 of 10 weigh-ins" in trend
+    # The chart axis starts a week (plus a day of room) back, not 3 months back.
+    assert chart_data(page)["start"] == "2026-09-30"
+    assert "One weigh-in so far: 70.0 kg on Thu 8 Oct." in page
+
+
+def test_settled_estimate_and_trend_are_not_marked_early(client, config):
+    seed(config, linear_logs(), Settings(rate_kg_per_week=-0.5))
+    page = client.get("/").text
+    assert "Early" not in page
+
+
+def test_goal_shows_direction(client, config):
+    seed(config, linear_logs(), Settings(goal_weight_kg=70, rate_kg_per_week=-0.5))
+    goal = section(client.get("/").text, "goal-heading")
+    assert "Down 0.50 kg a week, toward your goal" in goal
+
+
+def test_goal_direction_waits_for_enough_data(client, config):
+    seed(config, [DayLog(TODAY, 80.0, None)], Settings(goal_weight_kg=70))
+    goal = section(client.get("/").text, "goal-heading")
+    assert "Direction appears after 10 weigh-ins over 21 days" in goal
+
+
+def test_caption_says_since_when_data_is_shorter_than_range(client, config):
+    seed(config, linear_logs(14))
+    page = client.get("/").text
+    caption = page[page.index("<figcaption>") : page.index("</figcaption>")]
+    assert "since Thu 24 Sep" in caption
