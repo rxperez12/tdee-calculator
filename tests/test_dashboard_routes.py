@@ -54,6 +54,70 @@ def test_empty_database_shows_onboarding_only(client):
     assert "chart.umd.min.js" not in page
 
 
+def test_daily_table_includes_calorie_only_days(client, config):
+    seed(
+        config,
+        [
+            DayLog(TODAY - timedelta(days=2), 80.0, None),
+            DayLog(TODAY - timedelta(days=1), None, 0),
+            DayLog(TODAY, 80.0, 2100),
+        ],
+    )
+    page = client.get("/?range=4w").text
+    table = page[page.index('<details class="chart-table">') :]
+    assert table.count("<tr>") == 4  # header plus all three logged dates
+    assert "Show daily log as a table" in table
+    assert "Calories (kcal)" in table
+    assert (
+        table.index("Thu 8 Oct") < table.index("Wed 7 Oct") < table.index("Tue 6 Oct")
+    )
+    assert 'href="/?date=2026-10-07&amp;range=4w"' in table
+    assert table.count('class="number">—</td>') == 3
+    assert 'class="number">0</td>' in table
+
+
+def test_calorie_only_range_has_table_without_chart(client, config):
+    seed(config, [DayLog(TODAY, None, 2100)])
+    page = client.get("/?range=4w").text
+    assert "No weigh-ins yet" in page
+    assert "Show daily log as a table" in page
+    assert 'class="number">2100</td>' in page
+    assert 'id="weight-chart"' not in page
+    assert "chart.umd.min.js" not in page
+
+
+def test_daily_table_uses_display_units_and_edit_loads_row(client, config):
+    seed(
+        config,
+        [DayLog(TODAY, 80.0, 2000)],
+        Settings(weight_unit=WeightUnit.LB, energy_unit=EnergyUnit.KJ),
+    )
+    page = client.get("/?range=4w").text
+    table = page[page.index('<details class="chart-table">') :]
+    assert "Weight (lb)" in table
+    assert "Calories (kJ)" in table
+    assert 'class="number">176.4</td>' in table
+    assert 'class="number">8368</td>' in table
+    link = re.search(r'href="([^\"]+)" aria-label="Edit', table)
+    assert link is not None
+    edit = client.get(link.group(1).replace("&amp;", "&")).text
+    assert "Logging Thu 8 Oct" in edit
+    assert 'name="range" value="4w"' in edit
+
+
+def test_daily_table_empty_range_and_old_weigh_in_with_recent_calories(client, config):
+    seed(config, [DayLog(TODAY - timedelta(days=120), 80.0, None)])
+    page = client.get("/?range=4w").text
+    assert "No logs in the last 4 weeks" in page
+    assert '<details class="chart-table">' not in page
+    seed(config, [DayLog(TODAY, None, 2100)])
+    page = client.get("/?range=4w&date=2026-10-01").text
+    assert "No weigh-ins in the last 4 weeks" in page
+    assert 'href="/?range=all&amp;date=2026-10-01#chart"' in page
+    assert "Show daily log as a table" in page
+    assert 'class="number">2100</td>' in page
+
+
 def test_logged_tdee_and_target(client, config):
     seed(config, linear_logs(), Settings(rate_kg_per_week=-0.5))
     page = client.get("/").text
@@ -191,7 +255,7 @@ def test_range_selects_chart_window(client, config, query, start):
     assert data["start"] == start
     rows = page[page.index("<tbody>", page.index("chart-table")) :]
     rows = rows[: rows.index("</tbody>")]
-    assert rows.count("<tr>") == len(data["weighIns"])
+    assert rows.count("<tr>") == (29 if query == "?range=4w" else 92)
     assert rows.index("Thu 8 Oct") < rows.index("Wed 7 Oct")  # newest first
 
 

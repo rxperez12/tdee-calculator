@@ -12,6 +12,7 @@ from tdee_calculator.dashboard import (
     Range,
     build_chart,
     build_dashboard,
+    build_table,
     chart_payload,
     parse_range,
 )
@@ -78,20 +79,20 @@ def render_home(
         form_date = Date.fromisoformat(form_values["entry_date"])
     except ValueError:
         form_date = None
-    is_update = (
-        form_date is not None and entries.get_entry(session, form_date) is not None
-    )
-    dashboard = build_dashboard(entries.all_day_logs(session), settings, today)
+    logs = entries.all_day_logs(session)
+    dashboard = build_dashboard(logs, settings, today)
     chart = build_chart(dashboard, settings, chart_range)
     return templates.TemplateResponse(
         request=request,
         name="index.html",
         context={
             "form_values": form_values,
+            "form_date": form_date,
             "errors": errors or {},
             "today": today,
             "dashboard": dashboard,
             "chart": chart,
+            "table_rows": build_table(logs, dashboard, chart),
             "chart_data": chart_payload(chart, settings.weight_unit),
             "ranges": RANGES,
             "range_labels": RANGE_LABELS,
@@ -102,7 +103,6 @@ def render_home(
             "saved": saved,
             "conflict_date": conflict_date,
             "stale_date": stale_date,
-            "is_update": is_update,
             "settings": settings,
             "notice": notice,
             "weight_min": format_weight(MIN_WEIGHT_KG, settings.weight_unit),
@@ -119,11 +119,17 @@ def home(
     request: Request,
     session: SessionDependency,
     settings: SettingsDependency,
-    date: Date | None = None,
+    date: str | None = None,
     saved: Date | None = None,
     chart_range: Annotated[str | None, Query(alias="range")] = None,
 ) -> HTMLResponse:
-    form_date = date or clock.today()
+    today = clock.today()
+    try:
+        form_date = Date.fromisoformat(date or "")
+    except ValueError:
+        form_date = today
+    if form_date > today:
+        form_date = today
     values = entry_values(session, form_date, settings)
     return render_home(
         request,
@@ -147,7 +153,9 @@ def save_entry(
     calories: Annotated[str, Form()] = "",
     weight_unit: Annotated[str, Form()] = "",
     energy_unit: Annotated[str, Form()] = "",
+    chart_range: Annotated[str, Form(alias="range")] = "3m",
 ) -> HTMLResponse | RedirectResponse:
+    selected_range = parse_range(chart_range)
     values = {
         "entry_date": entry_date,
         "loaded_date": loaded_date,
@@ -170,6 +178,7 @@ def save_entry(
             settings,
             status_code=409,
             notice=STALE_UNITS_NOTICE,
+            chart_range=selected_range,
         )
     current = (
         entries.get_entry(session, parsed_date) if parsed_date is not None else None
@@ -185,7 +194,13 @@ def save_entry(
     )
     if isinstance(result, EntryFormErrors):
         return render_home(
-            request, session, values, settings, result.errors, status_code=422
+            request,
+            session,
+            values,
+            settings,
+            result.errors,
+            status_code=422,
+            chart_range=selected_range,
         )
     loaded: Date | None
     try:
@@ -200,6 +215,7 @@ def save_entry(
             settings,
             status_code=409,
             conflict_date=result.date,
+            chart_range=selected_range,
         )
     # The form replaces both fields, so saving it is only safe if the row is
     # still what the form showed, not something another tab saved since.
@@ -211,9 +227,14 @@ def save_entry(
             settings,
             status_code=409,
             stale_date=result.date,
+            chart_range=selected_range,
         )
     entries.upsert_entry(session, result)
-    return RedirectResponse(f"/?saved={result.date.isoformat()}", status_code=303)
+    saved_date = result.date.isoformat()
+    return RedirectResponse(
+        f"/?date={saved_date}&range={selected_range}&saved={saved_date}",
+        status_code=303,
+    )
 
 
 @router.post("/entries/{entry_date}/delete")

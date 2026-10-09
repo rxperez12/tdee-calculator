@@ -4,27 +4,33 @@
 {% endif %}
 {% if conflict_date %}
   <p class="error" role="alert">
-    {{ conflict_date.day }} {{ conflict_date.strftime('%b') }} already has an entry:
-    <a href="/?date={{ conflict_date.isoformat() }}">Edit it</a>.
+    {{ conflict_date | short_date(today) }} already has saved data.
+    <a href="/?date={{ conflict_date.isoformat() }}&amp;range={{ chart.range }}">Load this day</a> before saving.
   </p>
 {% endif %}
 {% if stale_date %}
   <p class="error" role="alert">
     {{ stale_date.day }} {{ stale_date.strftime('%b') }} changed since this page loaded:
-    <a href="/?date={{ stale_date.isoformat() }}">reload it</a> to see the saved values.
+    <a href="/?date={{ stale_date.isoformat() }}&amp;range={{ chart.range }}">reload it</a> to see the saved values.
   </p>
 {% endif %}
+<form method="get" action="/" class="entry-form date-selector">
+  <input type="hidden" name="range" value="{{ chart.range }}">
+  <div class="field">
+    <label for="date">Date</label>
+    <input id="date" name="date" type="date" max="{{ today }}" value="{{ form_date.isoformat() if form_date else today }}" required>
+  </div>
+  <button type="submit">Load day</button>
+</form>
+<p class="logging-day">{% if form_date %}Logging {{ form_date | short_date(today) }}{% else %}Load a valid day before saving.{% endif %}</p>
+{% if errors.get('date') %}<p class="error" role="alert">{{ errors['date'] }}</p>{% endif %}
 <form method="post" action="/entries" class="entry-form">
+  <input type="hidden" name="entry_date" value="{{ form_values['entry_date'] }}">
+  <input type="hidden" name="range" value="{{ chart.range }}">
   <input type="hidden" name="loaded_date" value="{{ form_values['loaded_date'] }}">
   <input type="hidden" name="loaded_version" value="{{ form_values['loaded_version'] }}">
   <input type="hidden" name="weight_unit" value="{{ form_values['weight_unit'] }}">
   <input type="hidden" name="energy_unit" value="{{ form_values['energy_unit'] }}">
-  <div class="field">
-    <label for="entry_date">Date</label>
-    <input id="entry_date" name="entry_date" type="date" max="{{ today }}" value="{{ form_values['entry_date'] }}" required
-      {% if errors.get('date') %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
-    {% if errors.get('date') %}<p class="error" id="date-error">{{ errors['date'] }}</p>{% endif %}
-  </div>
   <div class="field">
     <label for="weight">Weight ({{ settings.weight_unit.value }})</label>
     <input id="weight" name="weight" type="number" step="any" inputmode="decimal" min="{{ weight_min }}" max="{{ weight_max }}" value="{{ form_values['weight'] }}" autofocus
@@ -37,6 +43,6 @@
       {% if errors.get('calories') %}aria-invalid="true" aria-describedby="calories-error"{% endif %}>
     {% if errors.get('calories') %}<p class="error" id="calories-error">{{ errors['calories'] }}</p>{% endif %}
   </div>
-  <button type="submit">{{ 'Update' if is_update else 'Save' }}</button>
+  <button type="submit">Save</button>
 </form>
 

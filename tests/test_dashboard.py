@@ -17,10 +17,12 @@ from tdee_calculator.dashboard import (
     GoalTooSlow,
     NoGoal,
     NoTarget,
+    TableRow,
     Target,
     TargetBelowFloor,
     build_chart,
     build_dashboard,
+    build_table,
     calc_params,
     chart_payload,
     goal_status,
@@ -37,6 +39,53 @@ BODY = {
     "birth_date": date(1990, 10, 8),  # 36 on TODAY
     "activity": ActivityLevel.MODERATE,
 }
+
+
+def test_daily_table_rows_keep_partial_logs_and_actual_trends():
+    logs = [
+        DayLog(TODAY - timedelta(days=1), None, 0),
+        DayLog(TODAY, 80.0, 2100),
+        DayLog(TODAY - timedelta(days=2), 80.0, None),
+    ]
+    result = build_dashboard(logs, Settings(), TODAY)
+    rows = build_table(logs, result, build_chart(result, Settings(), "4w"))
+    assert rows == (
+        TableRow(TODAY, 80.0, 2100, 80.0),
+        TableRow(TODAY - timedelta(days=1), None, 0, None),
+        TableRow(TODAY - timedelta(days=2), 80.0, None, 80.0),
+    )
+
+
+@pytest.mark.parametrize("rng,boundary", [("4w", 28), ("3m", 91)])
+def test_daily_table_range_is_inclusive_and_stops_today(rng, boundary):
+    logs = [
+        DayLog(TODAY - timedelta(days=boundary + 1), None, 1900),
+        DayLog(TODAY - timedelta(days=boundary), None, 2000),
+        DayLog(TODAY, 80.0, 2100),
+        DayLog(TODAY + timedelta(days=1), None, 2200),
+    ]
+    settings = Settings(goal_weight_kg=70, rate_kg_per_week=-0.5)
+    result = build_dashboard(logs, settings, TODAY)
+    rows = build_table(logs, result, build_chart(result, settings, rng))
+    assert rows == (
+        TableRow(TODAY, 80.0, 2100, 80.0),
+        TableRow(TODAY - timedelta(days=boundary), None, 2000, None),
+    )
+
+
+def test_daily_table_all_retains_chart_start_without_weigh_ins():
+    logs = [
+        DayLog(TODAY - timedelta(days=29), None, 1900),
+        DayLog(TODAY - timedelta(days=28), None, 2000),
+    ]
+    result = build_dashboard(logs, Settings(), TODAY)
+    rows = build_table(logs, result, build_chart(result, Settings(), "all"))
+    assert rows == (TableRow(TODAY - timedelta(days=28), None, 2000, None),)
+
+
+def test_daily_table_empty():
+    result = build_dashboard([], Settings(), TODAY)
+    assert build_table([], result, build_chart(result, Settings(), "all")) == ()
 
 
 def linear_logs(days=28, *, start_kg=80.0, kg_per_week=-0.5, calories=2000, end=TODAY):

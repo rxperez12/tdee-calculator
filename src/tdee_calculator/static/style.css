@@ -86,6 +86,19 @@ h2 {
   gap: 1rem;
 }
 
+.date-selector .field {
+  flex: 0 1 12rem;
+}
+
+.date-selector > button {
+  align-self: flex-end;
+}
+
+.logging-day {
+  margin: 1rem 0 0.5rem;
+  font-weight: 600;
+}
+
 .field {
   flex: 1 1 9rem;
   min-width: 0;
@@ -351,6 +364,10 @@ th, td {
 
 .chart-table summary {
   cursor: pointer;
+}
+
+.chart-table table {
+  min-width: 30rem;
 }
 
 .chart-empty {

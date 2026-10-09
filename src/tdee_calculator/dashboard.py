@@ -378,6 +378,25 @@ class Chart:
         return bool(self.points) and self.points[0].date > self.start + timedelta(7)
 
 
+@dataclass(frozen=True)
+class TableRow:
+    date: Date
+    weight_kg: float | None
+    calories: int | None
+    trend_kg: float | None
+
+
+def build_table(
+    logs: list[DayLog], dashboard: Dashboard, chart: Chart
+) -> tuple[TableRow, ...]:
+    trends = {point.date: point.trend_kg for point in dashboard.trend}
+    return tuple(
+        TableRow(log.date, log.weight_kg, log.calories, trends.get(log.date))
+        for log in sorted(logs, key=lambda log: log.date, reverse=True)
+        if chart.start <= log.date <= dashboard.today
+    )
+
+
 def range_days(rng: Range, dashboard: Dashboard) -> int:
     if rng != "all":
         return RANGE_DAYS[rng]

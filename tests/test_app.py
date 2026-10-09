@@ -29,15 +29,59 @@ def test_app_startup_creates_database(config) -> None:
 
 
 class FormInputs(HTMLParser):
-    def __init__(self, html: str) -> None:
+    def __init__(self, html: str, action: str | None = None) -> None:
         super().__init__()
         self.values: dict[str, str] = {}
+        self.inputs: dict[str, dict[str, str | None]] = {}
+        self.forms: list[dict[str, str | None]] = []
+        self.action = action
+        self.in_form = False
         self.feed(html)
 
     def handle_starttag(self, tag, attrs) -> None:
         attributes = dict(attrs)
-        if tag == "input" and "name" in attributes:
+        if tag == "form":
+            self.forms.append(attributes)
+            self.in_form = (
+                attributes.get("action") == self.action
+                if self.action is not None
+                else attributes.get("method", "get").lower() == "post"
+            )
+        if self.in_form and tag == "input" and "name" in attributes:
             self.values[attributes["name"]] = attributes.get("value", "")
+            self.inputs[attributes["name"]] = attributes
+
+    def handle_endtag(self, tag) -> None:
+        if tag == "form":
+            self.in_form = False
+
+
+def test_date_selector_loads_day_separately_from_save(client, config) -> None:
+    save(client, form_data(entry_date="2026-10-07", calories=""))
+    page = client.get("/?range=4w").text
+    selector = FormInputs(page, action="/")
+    assert selector.values == {"date": "2026-10-08", "range": "4w"}
+    assert "onchange" not in selector.inputs["date"]
+    assert selector.inputs["date"]["max"] == "2026-10-08"
+    assert "required" in selector.inputs["date"]
+    selector.values["date"] = "2026-10-07"
+    loaded = client.get("/", params=selector.values)
+    entry = FormInputs(loaded.text, action="/entries")
+    assert entry.inputs["entry_date"]["type"] == "hidden"
+    assert entry.values["entry_date"] == "2026-10-07"
+    assert entry.values["loaded_date"] == "2026-10-07"
+    assert entry.values["weight"] == "80.2"
+    assert "Logging Wed 7 Oct" in loaded.text
+    assert [form["method"] for form in entry.forms] == ["get", "post"]
+    entry.values["calories"] = "2100"
+    response = save(client, entry.values)
+    assert response.status_code == 303
+    assert response.headers["location"] == (
+        "/?date=2026-10-07&range=4w&saved=2026-10-07"
+    )
+    assert stored_entries(config) == [
+        ("2026-10-07", pytest.approx(80.25, abs=1e-9), 2100, "manual")
+    ]
 
 
 def stored_entries(config):
@@ -61,6 +105,7 @@ def form_data(entry_date="2026-10-08", weight="80.25", calories="2000"):
         "energy_unit": "kcal",
         "weight": weight,
         "calories": calories,
+        "range": "3m",
     }
 
 
@@ -84,6 +129,7 @@ def test_home_prefills_today_and_focuses_weight(client) -> None:
         "energy_unit": "kcal",
         "weight": "",
         "calories": "",
+        "range": "3m",
     }
     assert 'max="2026-10-08"' in response.text
     assert "autofocus" in response.text
@@ -92,13 +138,15 @@ def test_home_prefills_today_and_focuses_weight(client) -> None:
 def test_save_redirects_and_persists(client, config) -> None:
     response = save(client)
     assert response.status_code == 303
-    assert response.headers["location"] == "/?saved=2026-10-08"
+    assert response.headers["location"] == (
+        "/?date=2026-10-08&range=3m&saved=2026-10-08"
+    )
     assert stored_entries(config) == [
         ("2026-10-08", pytest.approx(80.25, abs=1e-9), 2000, "manual")
     ]
     page = client.get(response.headers["location"])
     assert "Saved Thu 8 Oct" in page.text
-    assert ">Update</button>" in page.text
+    assert ">Save</button>" in page.text
     assert "1 entry" in client.get("/history").text
 
 
@@ -114,6 +162,45 @@ def test_evening_calories_keep_prefilled_morning_weight(client, config) -> None:
     ]
 
 
+@pytest.mark.parametrize("date_text", ["", "garbage", "2026-10-09"])
+def test_invalid_selected_date_falls_back_to_today(client, date_text) -> None:
+    response = client.get("/", params={"date": date_text, "range": "all"})
+    assert response.status_code == 200
+    entry = FormInputs(response.text)
+    assert entry.values["entry_date"] == "2026-10-08"
+    assert entry.values["range"] == "all"
+    assert "Logging Thu 8 Oct" in response.text
+
+
+def test_backfilled_weight_keeps_existing_calories(client, config) -> None:
+    save(client, form_data(entry_date="2026-10-07", weight="", calories="0"))
+    page = client.get("/?date=2026-10-07&range=4w").text
+    values = FormInputs(page).values
+    values["weight"] = "80.25"
+    assert save(client, values).status_code == 303
+    assert stored_entries(config) == [
+        ("2026-10-07", pytest.approx(80.25, abs=1e-9), 0, "manual")
+    ]
+
+
+@pytest.mark.parametrize("failure", ["invalid", "stale", "units", "date"])
+def test_save_error_keeps_selected_range(client, failure) -> None:
+    values = FormInputs(client.get("/?range=4w").text).values
+    if failure == "invalid":
+        values["weight"] = "oops"
+    elif failure == "units":
+        values.update(weight="80", weight_unit="lb")
+    else:
+        save(client)
+        values["weight"] = "81"
+        if failure == "date":
+            values["loaded_date"] = "2026-10-07"
+    response = save(client, values)
+    assert response.status_code == (422 if failure == "invalid" else 409)
+    assert FormInputs(response.text).values["range"] == "4w"
+    assert FormInputs(response.text, action="/").values["range"] == "4w"
+
+
 def test_stale_form_cannot_overwrite_newer_save(client, config) -> None:
     stale_tab = FormInputs(client.get("/").text).values
     fresh_tab = FormInputs(client.get("/").text).values
@@ -125,7 +212,7 @@ def test_stale_form_cannot_overwrite_newer_save(client, config) -> None:
 
     assert response.status_code == 409
     assert "8 Oct changed since this page loaded" in response.text
-    assert 'href="/?date=2026-10-08"' in response.text
+    assert 'href="/?date=2026-10-08&amp;range=3m"' in response.text
     values = FormInputs(response.text).values
     assert values == stale_tab
     assert save(client, values).status_code == 409
@@ -187,8 +274,8 @@ def test_overwrite_guard_preserves_existing_entry(client, config, loaded_date) -
     data["loaded_date"] = loaded_date
     response = save(client, data)
     assert response.status_code == 409
-    assert "8 Oct already has an entry" in response.text
-    assert 'href="/?date=2026-10-08"' in response.text
+    assert "Thu 8 Oct already has saved data" in response.text
+    assert 'href="/?date=2026-10-08&amp;range=3m"' in response.text
     assert FormInputs(response.text).values == data
     assert stored_entries(config) == [
         ("2026-10-08", pytest.approx(80.25, abs=1e-9), 2000, "manual")
