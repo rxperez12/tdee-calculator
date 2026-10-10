@@ -16,7 +16,6 @@ from tdee_calculator.settings_form import (
     MIN_WINDOW,
     SettingsFormErrors,
     SettingsValues,
-    format_height,
     parse_settings_form,
     parse_units_form,
     settings_to_form,
@@ -25,6 +24,7 @@ from tdee_calculator.units import (
     EnergyUnit,
     WeightUnit,
     format_density,
+    format_height,
     format_rate,
     format_weight,
 )

@@ -15,6 +15,7 @@ from tdee_calculator.units import (
     density_to_kcal_per_kg,
     feet_inches_to_cm,
     format_density,
+    format_height,
     format_rate,
     format_weight,
     matching_bound,
@@ -120,13 +121,6 @@ def _optional_number(
     if not text:
         return None
     return _number(text, key, label, lower, upper, convert, formatter, errors)
-
-
-def format_height(cm: float, weight: WeightUnit) -> str:
-    if weight is WeightUnit.KG:
-        return f"{cm:.0f} cm"
-    feet, inches = cm_to_feet_inches(cm)
-    return f"{feet} ft {inches:g} in"
 
 
 def _height(

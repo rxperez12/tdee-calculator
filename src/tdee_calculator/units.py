@@ -79,6 +79,13 @@ def cm_to_feet_inches(cm: float) -> tuple[int, float]:
     return feet, remaining / 2
 
 
+def format_height(cm: float, weight: WeightUnit) -> str:
+    if weight is WeightUnit.KG:
+        return f"{cm:.0f} cm"
+    feet, inches = cm_to_feet_inches(cm)
+    return f"{feet} ft {inches:g} in"
+
+
 def format_weight(kg: float, unit: WeightUnit) -> str:
     return f"{weight_from_kg(kg, unit):.1f}"
 

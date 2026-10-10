@@ -13,6 +13,7 @@ from tdee_calculator.units import (
     format_density,
     format_energy,
     format_energy_display,
+    format_height,
     format_length,
     format_rate,
     format_weight,
@@ -139,3 +140,19 @@ def test_energy_display_rounding_up_never_shows_less():
         format_energy_display(2000.0000000000002, EnergyUnit.KCAL, round_up=True)
         == "2,000"
     )
+
+
+@pytest.mark.parametrize(
+    "cm,unit,expected",
+    [
+        (180, WeightUnit.KG, "180 cm"),
+        (100, WeightUnit.KG, "100 cm"),
+        (250, WeightUnit.KG, "250 cm"),
+        (180, WeightUnit.LB, "5 ft 11 in"),  # 70.87 in, nearest half inch is 71
+        (179.07, WeightUnit.LB, "5 ft 10.5 in"),  # 70.5 in exactly
+        (100, WeightUnit.LB, "3 ft 3.5 in"),  # 39.37 in
+        (250, WeightUnit.LB, "8 ft 2.5 in"),  # 98.43 in
+    ],
+)
+def test_format_height(cm, unit, expected):
+    assert format_height(cm, unit) == expected
