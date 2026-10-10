@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from datetime import date as Date
 
 from fastapi import APIRouter, Request
@@ -6,7 +5,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from tdee_calculator import clock, measurements
-from tdee_calculator.calc import Sex, Site, mean_reading, navy_body_fat
+from tdee_calculator.body_fat import build_summary
+from tdee_calculator.calc import Site
 from tdee_calculator.measurement_form import (
     READING_LIMITS,
     SITE_LABELS,
@@ -26,15 +26,6 @@ from tdee_calculator.web import (
 )
 
 router = APIRouter()
-
-
-@dataclass(frozen=True)
-class MeasurementRow:
-    date: Date
-    means: dict[Site, str]
-    estimate: float | None
-    reason: str
-    needs_settings: bool = False
 
 
 def measurement_version(row: MeasurementSession | None) -> str:
@@ -60,50 +51,6 @@ def measurement_values(
     return values
 
 
-def build_row(row: MeasurementSession, settings: Settings) -> MeasurementRow:
-    means = {
-        site: mean_reading(values)
-        for site in Site
-        if (values := [r.value_cm for r in row.readings if r.site == site.value])
-    }
-    formatted = {
-        site: format_length(value, length_unit_for(settings.weight_unit))
-        for site, value in means.items()
-    }
-    missing_settings = []
-    if settings.sex is None:
-        missing_settings.append("sex")
-    if settings.height_cm is None:
-        missing_settings.append("height")
-    if missing_settings:
-        return MeasurementRow(
-            row.date,
-            formatted,
-            None,
-            f"Set {' and '.join(missing_settings)} in Settings",
-            needs_settings=True,
-        )
-    assert settings.sex is not None
-    assert settings.height_cm is not None
-    required = (
-        (Site.NECK, Site.ABDOMEN)
-        if settings.sex == Sex.MALE
-        else (Site.NECK, Site.WAIST, Site.HIP)
-    )
-    missing = [site.value for site in required if site not in means]
-    if missing:
-        return MeasurementRow(
-            row.date, formatted, None, f"Needs {' and '.join(missing)}"
-        )
-    try:
-        estimate = navy_body_fat(settings.sex, settings.height_cm, means)
-    except ValueError:
-        estimate = None
-    if estimate is None or not 2 <= estimate <= 60:
-        return MeasurementRow(row.date, formatted, None, "Outside the equation's range")
-    return MeasurementRow(row.date, formatted, estimate, "")
-
-
 def render_measurements(
     request: Request,
     session: Session,
@@ -117,9 +64,7 @@ def render_measurements(
     stale_date: Date | None = None,
     notice: str | None = None,
 ) -> HTMLResponse:
-    rows = [build_row(row, settings) for row in measurements.all_sessions(session)]
-    latest = next((row for row in rows if row.estimate is not None), None)
-    newer = [row for row in rows if latest is not None and row.date > latest.date]
+    summary = build_summary(measurements.all_sessions(session), settings)
     unit = length_unit_for(settings.weight_unit)
     return templates.TemplateResponse(
         request=request,
@@ -129,9 +74,9 @@ def render_measurements(
             "today": clock.today(),
             "form_values": values,
             "errors": errors or {},
-            "rows": rows,
-            "latest": latest,
-            "newer": newer,
+            "rows": summary.rows,
+            "latest": summary.latest,
+            "newer": summary.newer,
             "sites": SITE_LABELS,
             "length_unit": unit.value,
             "limits": {
