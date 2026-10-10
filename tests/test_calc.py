@@ -9,6 +9,96 @@ import pytest
 
 from tdee_calculator import calc
 
+
+@pytest.mark.parametrize(
+    "sex,height,sites,expected",
+    [
+        (calc.Sex.MALE, 71, {calc.Site.NECK: 15.5, calc.Site.ABDOMEN: 35}, 18),
+        (calc.Sex.MALE, 70, {calc.Site.NECK: 15, calc.Site.ABDOMEN: 33.5}, 17),
+        (
+            calc.Sex.FEMALE,
+            65,
+            {calc.Site.NECK: 13, calc.Site.WAIST: 28, calc.Site.HIP: 38},
+            26,
+        ),
+        (
+            calc.Sex.FEMALE,
+            60,
+            {calc.Site.NECK: 13, calc.Site.WAIST: 30, calc.Site.HIP: 38},
+            32,
+        ),
+    ],
+)
+def test_navy_estimates_match_independent_guide_tables(sex, height, sites, expected):
+    # Navy Guide 4 (Mar 2021), Tables 2/3, pp. 15/16:
+    # male (height, CV): (71, 19.5), (70, 18.5);
+    # female: (65, 53), (60, 55). Charts report whole percent.
+    # https://www.calculator.net/pdf/navy-physical-readiness-program.pdf
+    assert calc.navy_body_fat(
+        sex, height * 2.54, {site: inches * 2.54 for site, inches in sites.items()}
+    ) == pytest.approx(expected, abs=0.5)
+
+
+@pytest.mark.parametrize("sex", list(calc.Sex))
+def test_navy_missing_required_sites_returns_none(sex):
+    sites = {calc.Site.NECK: 35, calc.Site.ABDOMEN: 80}
+    if sex == calc.Sex.MALE:
+        sites.pop(calc.Site.NECK)
+    assert calc.navy_body_fat(sex, 180, sites) is None
+
+
+def test_navy_matches_recalculated_original_spreadsheet():
+    # Original workbook, R12, recalculated in LibreOffice headless on 2026-10-09:
+    # S3=male, S4=inch, S5=71, O12=34.5, P12=15.5 -> R12=0.17.
+    # The workbook rounds to whole percent; allow half a percentage point.
+    assert calc.navy_body_fat(
+        calc.Sex.MALE, 180.34, {calc.Site.NECK: 39.37, calc.Site.ABDOMEN: 87.63}
+    ) == pytest.approx(17, abs=0.5)
+
+
+@pytest.mark.parametrize("abdomen", [39, 40])
+def test_navy_invalid_male_log_argument_names_sites(abdomen):
+    with pytest.raises(ValueError, match=r"abdomen.*neck"):
+        calc.navy_body_fat(
+            calc.Sex.MALE, 180, {calc.Site.NECK: 40, calc.Site.ABDOMEN: abdomen}
+        )
+
+
+def test_navy_invalid_female_log_argument_names_sites():
+    with pytest.raises(ValueError, match=r"waist.*hip.*neck"):
+        calc.navy_body_fat(
+            calc.Sex.FEMALE,
+            165,
+            {calc.Site.NECK: 100, calc.Site.WAIST: 40, calc.Site.HIP: 50},
+        )
+
+
+@pytest.mark.parametrize("height", [0, -1, float("nan"), float("inf")])
+def test_navy_rejects_invalid_height(height):
+    with pytest.raises(ValueError, match="height_cm"):
+        calc.navy_body_fat(calc.Sex.MALE, height, {})
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf")])
+def test_navy_rejects_nonfinite_site(value):
+    with pytest.raises(ValueError, match="neck"):
+        calc.navy_body_fat(
+            calc.Sex.MALE, 180, {calc.Site.NECK: value, calc.Site.ABDOMEN: 80}
+        )
+
+
+@pytest.mark.parametrize("values,expected", [([35.2], 35.2), ([34, 35, 36], 35)])
+def test_mean_reading(values, expected):
+    assert calc.mean_reading(values) == pytest.approx(expected, abs=1e-9)
+
+
+def test_mean_reading_rejects_empty_and_nonfinite():
+    with pytest.raises(ValueError, match="empty"):
+        calc.mean_reading([])
+    with pytest.raises(ValueError, match="reading"):
+        calc.mean_reading([float("nan")])
+
+
 START = date(2026, 1, 1)
 
 

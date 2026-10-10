@@ -10,7 +10,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from tdee_calculator.config import Config, load_config
 from tdee_calculator.db import make_engine, run_migrations
-from tdee_calculator.routes import history, settings, today
+from tdee_calculator.routes import history, measurements, settings, today
 from tdee_calculator.security import allowed_hosts, is_cross_origin
 from tdee_calculator.web import PACKAGE_DIR
 
@@ -53,6 +53,7 @@ def create_app(config: Config | None = None) -> FastAPI:
     )
     application.include_router(today.router)
     application.include_router(history.router)
+    application.include_router(measurements.router)
     application.include_router(settings.router)
     return application
 

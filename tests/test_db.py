@@ -1,11 +1,13 @@
 import sqlite3
 from contextlib import closing
+from datetime import date
 from pathlib import Path
 
 import pytest
 from alembic import command
 from alembic.config import Config as AlembicConfig
 from sqlalchemy import inspect
+from sqlalchemy.orm import Session
 
 from tdee_calculator.db import (
     backup,
@@ -14,6 +16,7 @@ from tdee_calculator.db import (
     prepare,
     run_migrations,
 )
+from tdee_calculator.models import Entry, Setting
 
 ALEMBIC_INI = Path(__file__).parents[1] / "alembic.ini"
 
@@ -37,6 +40,8 @@ def test_run_migrations_creates_missing_data_directory_and_tables(config) -> Non
             "alembic_version",
             "entries",
             "settings",
+            "measurement_sessions",
+            "measurement_readings",
         }
     finally:
         engine.dispose()
@@ -63,7 +68,13 @@ def test_migrations_downgrade_to_base_and_upgrade_again(config) -> None:
     assert table_names(config) == {"alembic_version"}
 
     command.upgrade(alembic_config, "head")
-    assert table_names(config) == {"alembic_version", "entries", "settings"}
+    assert table_names(config) == {
+        "alembic_version",
+        "entries",
+        "settings",
+        "measurement_sessions",
+        "measurement_readings",
+    }
 
 
 def test_alembic_cli_config_migrates_database_from_environment(
@@ -77,7 +88,32 @@ def test_alembic_cli_config_migrates_database_from_environment(
     command.upgrade(AlembicConfig(str(ALEMBIC_INI)), "head")
 
     assert logging_configs == [str(ALEMBIC_INI)]
-    assert table_names(config) == {"alembic_version", "entries", "settings"}
+    assert table_names(config) == {
+        "alembic_version",
+        "entries",
+        "settings",
+        "measurement_sessions",
+        "measurement_readings",
+    }
+
+
+def test_measurements_migration_preserves_existing_entries_and_settings(config):
+    engine = make_engine(config)
+    try:
+        command.upgrade(make_alembic_config(config), "61e68c996d17")
+        with Session(engine) as session:
+            session.add(Entry(date=date(2026, 10, 8), weight_kg=80.25, calories=2100))
+            session.add(Setting(key="height_cm", value="180.5"))
+            session.commit()
+        run_migrations(config)
+        with Session(engine) as session:
+            row = session.get(Entry, date(2026, 10, 8))
+            assert row.weight_kg == pytest.approx(80.25, abs=1e-9)
+            assert row.calories == 2100
+            assert session.get(Setting, "height_cm").value == "180.5"
+        assert "measurement_readings" in table_names(config)
+    finally:
+        engine.dispose()
 
 
 def test_offline_migrations_are_rejected(config) -> None:

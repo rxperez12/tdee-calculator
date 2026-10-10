@@ -2,6 +2,7 @@ import pytest
 
 from tdee_calculator.units import (
     EnergyUnit,
+    LengthUnit,
     WeightUnit,
     cm_to_feet_inches,
     density_from_kcal_per_kg,
@@ -12,12 +13,31 @@ from tdee_calculator.units import (
     format_density,
     format_energy,
     format_energy_display,
+    format_length,
     format_rate,
     format_weight,
+    length_from_cm,
+    length_to_cm,
+    length_unit_for,
     matching_bound,
     weight_from_kg,
     weight_to_kg,
 )
+
+
+@pytest.mark.parametrize("unit", list(LengthUnit))
+def test_length_conversion_round_trip(unit):
+    assert length_to_cm(length_from_cm(83.12345, unit), unit) == pytest.approx(
+        83.12345, abs=1e-9
+    )
+
+
+def test_length_units_and_independent_inch_conversion():
+    assert length_unit_for(WeightUnit.KG) is LengthUnit.CM
+    assert length_unit_for(WeightUnit.LB) is LengthUnit.IN
+    assert length_to_cm(15.5, LengthUnit.IN) == pytest.approx(39.37, abs=1e-9)
+    assert format_length(39.37, LengthUnit.IN) == "15.5"
+    assert format_length(39.37, LengthUnit.CM) == "39.4"
 
 
 def test_known_conversions():

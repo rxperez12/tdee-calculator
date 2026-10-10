@@ -15,6 +15,27 @@ class WeightUnit(StrEnum):
     LB = "lb"
 
 
+class LengthUnit(StrEnum):
+    CM = "cm"
+    IN = "in"
+
+
+def length_unit_for(weight: WeightUnit) -> LengthUnit:
+    return LengthUnit.IN if weight is WeightUnit.LB else LengthUnit.CM
+
+
+def length_to_cm(value: float, unit: LengthUnit) -> float:
+    return value * CM_PER_INCH if unit is LengthUnit.IN else value
+
+
+def length_from_cm(cm: float, unit: LengthUnit) -> float:
+    return cm / CM_PER_INCH if unit is LengthUnit.IN else cm
+
+
+def format_length(cm: float, unit: LengthUnit) -> str:
+    return f"{length_from_cm(cm, unit):.1f}"
+
+
 class EnergyUnit(StrEnum):
     KCAL = "kcal"
     KJ = "kJ"
