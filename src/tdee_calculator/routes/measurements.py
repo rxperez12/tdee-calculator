@@ -7,13 +7,13 @@ from sqlalchemy.orm import Session
 from tdee_calculator import clock, measurements
 from tdee_calculator.body_fat import build_summary
 from tdee_calculator.calc import Site
+from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.measurement_form import (
     READING_LIMITS,
     SITE_LABELS,
     MeasurementFormErrors,
     parse_measurement_form,
 )
-from tdee_calculator.models import MeasurementSession
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import format_length, length_unit_for
 from tdee_calculator.web import (
@@ -21,15 +21,12 @@ from tdee_calculator.web import (
     FormDependency,
     SessionDependency,
     SettingsDependency,
+    requested_day,
     templates,
     weight_unit_matches,
 )
 
 router = APIRouter()
-
-
-def measurement_version(row: MeasurementSession | None) -> str:
-    return "" if row is None else row.updated_at.isoformat()
 
 
 def measurement_values(
@@ -40,7 +37,7 @@ def measurement_values(
     values.update(
         date=day.isoformat(),
         loaded_date=day.isoformat(),
-        loaded_version=measurement_version(row),
+        loaded_version=row_version(row),
         weight_unit=settings.weight_unit.value,
     )
     if row is not None:
@@ -100,13 +97,7 @@ def page(
     date: str | None = None,
     saved: Date | None = None,
 ) -> HTMLResponse:
-    today = clock.today()
-    try:
-        day = Date.fromisoformat(date or "")
-    except ValueError:
-        day = today
-    if day > today:
-        day = today
+    day = requested_day(date, clock.today())
     return render_measurements(
         request,
         session,
@@ -144,24 +135,21 @@ def save(
         return render_measurements(
             request, session, settings, values, errors=result.errors, status_code=422
         )
-    try:
-        loaded = Date.fromisoformat(values.get("loaded_date", ""))
-    except ValueError:
-        loaded = None
-    if result.date != loaded and current is not None:
+    conflict = edit_conflict(
+        result.date,
+        values.get("loaded_date", ""),
+        values.get("loaded_version", ""),
+        current,
+    )
+    if conflict is not None:
         return render_measurements(
             request,
             session,
             settings,
             values,
             status_code=409,
-            conflict_date=result.date,
-        )
-    if result.date == loaded and values.get(
-        "loaded_version", ""
-    ) != measurement_version(current):
-        return render_measurements(
-            request, session, settings, values, status_code=409, stale_date=result.date
+            conflict_date=result.date if conflict == "conflict" else None,
+            stale_date=result.date if conflict == "stale" else None,
         )
     measurements.upsert_session(session, result)
     saved_date = result.date.isoformat()

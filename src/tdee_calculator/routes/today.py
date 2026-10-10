@@ -1,7 +1,7 @@
 from datetime import date as Date
 from typing import Annotated
 
-from fastapi import APIRouter, Form, Query, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -16,6 +16,7 @@ from tdee_calculator.dashboard import (
     chart_payload,
     parse_range,
 )
+from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.entry_form import (
     MAX_CALORIES,
     MAX_WEIGHT_KG,
@@ -24,22 +25,28 @@ from tdee_calculator.entry_form import (
     EntryFormErrors,
     parse_entry_form,
 )
-from tdee_calculator.models import Entry
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import format_energy, format_weight
 from tdee_calculator.web import (
     STALE_UNITS_NOTICE,
+    FormDependency,
     SessionDependency,
     SettingsDependency,
+    requested_day,
     templates,
     units_match,
 )
 
 router = APIRouter()
-
-
-def entry_version(entry: Entry | None) -> str:
-    return "" if entry is None else entry.updated_at.isoformat()
+ENTRY_FIELDS = (
+    "entry_date",
+    "loaded_date",
+    "loaded_version",
+    "weight",
+    "calories",
+    "weight_unit",
+    "energy_unit",
+)
 
 
 def entry_values(
@@ -49,7 +56,7 @@ def entry_values(
     return {
         "entry_date": form_date.isoformat(),
         "loaded_date": form_date.isoformat(),
-        "loaded_version": entry_version(entry),
+        "loaded_version": row_version(entry),
         "weight_unit": settings.weight_unit.value,
         "energy_unit": settings.energy_unit.value,
         "weight": format_weight(entry.weight_kg, settings.weight_unit)
@@ -123,14 +130,7 @@ def home(
     saved: Date | None = None,
     chart_range: Annotated[str | None, Query(alias="range")] = None,
 ) -> HTMLResponse:
-    today = clock.today()
-    try:
-        form_date = Date.fromisoformat(date or "")
-    except ValueError:
-        form_date = today
-    if form_date > today:
-        form_date = today
-    values = entry_values(session, form_date, settings)
+    values = entry_values(session, requested_day(date, clock.today()), settings)
     return render_home(
         request,
         session,
@@ -146,27 +146,12 @@ def save_entry(
     request: Request,
     session: SessionDependency,
     settings: SettingsDependency,
-    entry_date: Annotated[str, Form()] = "",
-    loaded_date: Annotated[str, Form()] = "",
-    loaded_version: Annotated[str, Form()] = "",
-    weight: Annotated[str, Form()] = "",
-    calories: Annotated[str, Form()] = "",
-    weight_unit: Annotated[str, Form()] = "",
-    energy_unit: Annotated[str, Form()] = "",
-    chart_range: Annotated[str, Form(alias="range")] = "3m",
+    form: FormDependency,
 ) -> HTMLResponse | RedirectResponse:
-    selected_range = parse_range(chart_range)
-    values = {
-        "entry_date": entry_date,
-        "loaded_date": loaded_date,
-        "loaded_version": loaded_version,
-        "weight": weight,
-        "calories": calories,
-        "weight_unit": weight_unit,
-        "energy_unit": energy_unit,
-    }
+    selected_range = parse_range(form.get("range"))
+    values = {key: form.get(key, "") for key in ENTRY_FIELDS}
     try:
-        parsed_date = Date.fromisoformat(entry_date.strip())
+        parsed_date = Date.fromisoformat(values["entry_date"].strip())
     except ValueError:
         parsed_date = None
     if not units_match(values, settings):
@@ -184,9 +169,9 @@ def save_entry(
         entries.get_entry(session, parsed_date) if parsed_date is not None else None
     )
     result = parse_entry_form(
-        entry_date,
-        weight,
-        calories,
+        values["entry_date"],
+        values["weight"],
+        values["calories"],
         clock.today(),
         settings.weight_unit,
         settings.energy_unit,
@@ -202,31 +187,20 @@ def save_entry(
             status_code=422,
             chart_range=selected_range,
         )
-    loaded: Date | None
-    try:
-        loaded = Date.fromisoformat(loaded_date)
-    except ValueError:
-        loaded = None
-    if result.date != loaded and current is not None:
-        return render_home(
-            request,
-            session,
-            values,
-            settings,
-            status_code=409,
-            conflict_date=result.date,
-            chart_range=selected_range,
-        )
     # The form replaces both fields, so saving it is only safe if the row is
     # still what the form showed, not something another tab saved since.
-    if result.date == loaded and loaded_version != entry_version(current):
+    conflict = edit_conflict(
+        result.date, values["loaded_date"], values["loaded_version"], current
+    )
+    if conflict is not None:
         return render_home(
             request,
             session,
             values,
             settings,
             status_code=409,
-            stale_date=result.date,
+            conflict_date=result.date if conflict == "conflict" else None,
+            stale_date=result.date if conflict == "stale" else None,
             chart_range=selected_range,
         )
     entries.upsert_entry(session, result)
