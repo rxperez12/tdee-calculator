@@ -19,14 +19,17 @@ from tdee_calculator.dashboard import (
 from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.entry_form import (
     MAX_CALORIES,
-    MAX_WEIGHT_KG,
     MIN_CALORIES,
-    MIN_WEIGHT_KG,
     EntryFormErrors,
     parse_entry_form,
 )
 from tdee_calculator.settings import Settings
-from tdee_calculator.units import format_energy, format_weight
+from tdee_calculator.units import (
+    MAX_WEIGHT_KG,
+    MIN_WEIGHT_KG,
+    format_energy,
+    format_weight,
+)
 from tdee_calculator.web import (
     STALE_UNITS_NOTICE,
     FormDependency,

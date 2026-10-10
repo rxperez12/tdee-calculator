@@ -6,9 +6,10 @@ from dataclasses import dataclass, replace
 from datetime import date as Date
 
 from tdee_calculator.calc import ActivityLevel, Sex, age_on
-from tdee_calculator.entry_form import MAX_WEIGHT_KG, MIN_WEIGHT_KG
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import (
+    MAX_WEIGHT_KG,
+    MIN_WEIGHT_KG,
     EnergyUnit,
     WeightUnit,
     cm_to_feet_inches,

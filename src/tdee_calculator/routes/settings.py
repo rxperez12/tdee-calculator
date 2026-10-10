@@ -2,7 +2,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from tdee_calculator import clock
-from tdee_calculator.entry_form import MAX_WEIGHT_KG, MIN_WEIGHT_KG
 from tdee_calculator.settings import Settings, save_settings
 from tdee_calculator.settings_form import (
     ACTIVITY_LABELS,
@@ -21,6 +20,8 @@ from tdee_calculator.settings_form import (
     settings_to_form,
 )
 from tdee_calculator.units import (
+    MAX_WEIGHT_KG,
+    MIN_WEIGHT_KG,
     EnergyUnit,
     WeightUnit,
     format_density,

@@ -6,6 +6,8 @@ from datetime import date as Date
 from typing import TYPE_CHECKING
 
 from tdee_calculator.units import (
+    MAX_WEIGHT_KG,
+    MIN_WEIGHT_KG,
     EnergyUnit,
     WeightUnit,
     energy_from_kcal,
@@ -19,8 +21,6 @@ from tdee_calculator.units import (
 if TYPE_CHECKING:
     from tdee_calculator.models import Entry
 
-MIN_WEIGHT_KG = 20
-MAX_WEIGHT_KG = 400
 MIN_CALORIES = 0
 MAX_CALORIES = 20_000
 

@@ -8,6 +8,9 @@ KG_PER_LB = 0.45359237
 KJ_PER_KCAL = 4.184
 CM_PER_INCH = 2.54
 DISPLAY_STEP = {"kcal": 10, "kJ": 50}
+# Accepted body weights, shared by the daily entry and the goal weight.
+MIN_WEIGHT_KG = 20
+MAX_WEIGHT_KG = 400
 
 
 class WeightUnit(StrEnum):
