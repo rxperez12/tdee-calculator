@@ -10,6 +10,7 @@ from tdee_calculator.db import make_engine, run_migrations
 from tdee_calculator.entries import (
     all_day_logs,
     all_entries,
+    count_entries,
     delete_entry,
     get_entry,
     recent_entries,
@@ -125,3 +126,11 @@ def test_all_day_logs_converts_rows_oldest_first(session) -> None:
         DayLog(date(2026, 10, 7), 80.5, 2100),
         DayLog(DAY, 80.25, None),
     ]
+
+
+def test_count_entries_counts_every_row(session) -> None:
+    assert count_entries(session) == 0
+    for offset in range(3):
+        upsert_entry(session, EntryInput(DAY - timedelta(days=offset), 80, None))
+    upsert_entry(session, EntryInput(DAY, 81, 2000))  # update, not a new row
+    assert count_entries(session) == 3

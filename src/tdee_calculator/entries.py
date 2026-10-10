@@ -1,6 +1,6 @@
 from datetime import date as Date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from tdee_calculator.calc import DayLog
@@ -37,6 +37,10 @@ def delete_entry(session: Session, entry_date: Date) -> bool:
 
 def recent_entries(session: Session, limit: int = RECENT_LIMIT) -> list[Entry]:
     return list(session.scalars(select(Entry).order_by(Entry.date.desc()).limit(limit)))
+
+
+def count_entries(session: Session) -> int:
+    return session.scalar(select(func.count()).select_from(Entry)) or 0
 
 
 def all_entries(session: Session) -> list[Entry]:
