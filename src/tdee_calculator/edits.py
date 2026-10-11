@@ -5,15 +5,12 @@ would overwrite a different date's row, or a row that changed after the form loa
 """
 
 from datetime import date as Date
-from datetime import datetime as DateTime
-from typing import Literal, Protocol
+from typing import Literal
+
+from tdee_calculator.models import Entry, MeasurementSession
 
 EditConflict = Literal["conflict", "stale"]
-
-
-class Versioned(Protocol):
-    @property
-    def updated_at(self) -> DateTime: ...
+Versioned = Entry | MeasurementSession
 
 
 def row_version(row: Versioned | None) -> str:
