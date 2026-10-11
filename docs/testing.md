@@ -1,7 +1,8 @@
 # Testing standards
 
-Run `./check.sh` before calling work done. It checks formatting, lint, strict source
-types, and the full pytest suite with branch coverage using `uv.lock`.
+Run `./check.sh` before every commit and before calling work done. It checks
+formatting, lint, types (strict mypy on `src/`; pyright on `src/`, `tests/`, and
+`scripts/`), and the full pytest suite with branch coverage using `uv.lock`.
 
 For a focused iteration, use `uv run --locked pytest tests/test_calc.py`, or
 `uv run --locked pytest tests/test_db.py -k backup`. Run the full gate before handoff.

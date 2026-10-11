@@ -62,6 +62,7 @@ def fake_entries(days: int, today: date) -> list[EntryInput]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    assert __doc__ is not None
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--data-dir", type=Path, required=True)
     parser.add_argument("--days", type=int, default=120)

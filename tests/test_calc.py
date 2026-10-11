@@ -115,8 +115,22 @@ def make_logs(intakes=None, *, days=28, tdee=2500, density=7700):
     return logs
 
 
-def infer(logs, **kwargs):
+def estimate(logged, formula, **kwargs):
+    """A blended estimate the test expects to exist."""
+    result = calc.estimate_tdee(logged, formula, **kwargs)
+    assert result is not None
+    return result
+
+
+def infer_or_none(logs, **kwargs):
     return calc.logged_tdee(logs, START + timedelta(days=28), **kwargs)
+
+
+def infer(logs, **kwargs):
+    """An estimate the test expects to exist."""
+    result = infer_or_none(logs, **kwargs)
+    assert result is not None
+    return result
 
 
 def test_calc_imports_only_standard_library_and_does_not_read_the_clock():
@@ -126,6 +140,7 @@ def test_calc_imports_only_standard_library_and_does_not_read_the_clock():
             modules = [alias.name for alias in node.names]
         elif isinstance(node, ast.ImportFrom):
             assert node.level == 0
+            assert node.module is not None
             modules = [node.module]
         else:
             continue
@@ -145,7 +160,7 @@ def test_inputs_and_results_are_frozen():
     with pytest.raises(FrozenInstanceError):
         log.calories = 3000
     with pytest.raises(FrozenInstanceError):
-        infer(make_logs()).tdee = 3000
+        infer(make_logs()).tdee = 3000  # pyright: ignore[reportAttributeAccessIssue]  # must raise
 
 
 @pytest.mark.parametrize("field", ["weight_kg", "calories"])
@@ -241,9 +256,9 @@ def test_variable_intake_and_irregular_weigh_ins_recover_known_tdee(sparse):
     result = infer(iter(reversed(logs)))
     assert result.tdee == pytest.approx(2500)
     if not sparse:
-        old_estimate = mean(
-            log.calories for log in logs[:-1]
-        ) - 7700 * calc.weight_slope(logs)
+        slope = calc.weight_slope(logs)
+        assert slope is not None
+        old_estimate = mean(log.calories for log in logs[:-1]) - 7700 * slope
         assert old_estimate == pytest.approx(2289.6551724)
 
 
@@ -303,7 +318,7 @@ def test_calorie_coverage_uses_actual_bracketed_span(span, recorded, eligible):
     ]
     result = calc.logged_tdee(logs, START + timedelta(days=28))
     assert (result is not None) is eligible
-    if eligible:
+    if result is not None:
         assert result.tdee == pytest.approx(2500)
         assert result.calorie_days == recorded
         assert result.imputed_days == span - recorded
@@ -319,7 +334,7 @@ def test_custom_coverage_threshold_is_not_raised_by_float_error(recorded, eligib
         replace(log, calories=None) if recorded <= i < 25 else log
         for i, log in enumerate(logs)
     ]
-    result = infer(logs, min_calorie_coverage=0.56)
+    result = infer_or_none(logs, min_calorie_coverage=0.56)
     assert (result is not None) is eligible
 
 
@@ -400,7 +415,7 @@ def test_logged_tdee_returns_none_for_insufficient_data(kind):
         logs = [replace(log, weight_kg=None) for log in logs]
     else:
         logs = [replace(log, calories=None) for log in logs]
-    assert infer(logs) is None
+    assert infer_or_none(logs) is None
 
 
 @pytest.mark.parametrize(
@@ -470,7 +485,7 @@ def test_age_on_rejects_dates_before_birth():
 )
 def test_blend_ramp_and_retained_metadata(span, share, method):
     logged = infer(make_logs(days=span))
-    result = calc.estimate_tdee(logged, 2000)
+    result = estimate(logged, 2000)
     assert result.logs_weight == pytest.approx(share)
     assert result.tdee == pytest.approx(share * 2500 + (1 - share) * 2000)
     assert result.method == method
@@ -490,14 +505,14 @@ def test_blend_scales_by_coverage_not_eligible_weigh_in_count():
             for i, log in enumerate(logs)
         ]
     )
-    assert calc.estimate_tdee(full, 2000).logs_weight == pytest.approx(26 / 28)
-    assert calc.estimate_tdee(sparse, 2000).logs_weight == pytest.approx(26 / 28)
-    assert calc.estimate_tdee(full, 2000).method == "blend"
+    assert estimate(full, 2000).logs_weight == pytest.approx(26 / 28)
+    assert estimate(sparse, 2000).logs_weight == pytest.approx(26 / 28)
+    assert estimate(full, 2000).method == "blend"
 
 
 def test_blend_missing_estimate_fallbacks():
     assert calc.estimate_tdee(None, None) is None
-    formula = calc.estimate_tdee(None, 2000)
+    formula = estimate(None, 2000)
     assert (formula.tdee, formula.method, formula.logs_weight, formula.logged) == (
         2000,
         "formula",
@@ -505,7 +520,7 @@ def test_blend_missing_estimate_fallbacks():
         None,
     )
     logged = infer(make_logs(days=21))
-    result = calc.estimate_tdee(logged, None)
+    result = estimate(logged, None)
     assert result.tdee == pytest.approx(2500)
     assert (result.method, result.logs_weight, result.formula) == ("logs", 1, None)
 
@@ -513,37 +528,30 @@ def test_blend_missing_estimate_fallbacks():
 def test_blend_clamps_ramp_and_ignores_fit_noise():
     logged = infer(make_logs())
     assert (
-        calc.estimate_tdee(
-            logged, 2000, blend_start_days=30, blend_full_days=40
-        ).logs_weight
-        == 0
+        estimate(logged, 2000, blend_start_days=30, blend_full_days=40).logs_weight == 0
     )
     assert (
-        calc.estimate_tdee(
-            logged, 2000, blend_start_days=0, blend_full_days=7
-        ).logs_weight
-        == 1
+        estimate(logged, 2000, blend_start_days=0, blend_full_days=7).logs_weight == 1
     )
     noisy = make_logs()
     noisy[0] = replace(noisy[0], weight_kg=81)
     assert (
-        calc.estimate_tdee(infer(noisy), 2000).logs_weight
-        == calc.estimate_tdee(logged, 2000).logs_weight
+        estimate(infer(noisy), 2000).logs_weight == estimate(logged, 2000).logs_weight
     )
-    assert calc.estimate_tdee(infer([]), 2000).logged is None
+    assert estimate(infer_or_none([]), 2000).logged is None
 
 
 @pytest.mark.parametrize("value", [float("nan"), float("inf")])
 def test_blend_rejects_non_finite_estimates_even_at_zero_share(value):
     # At a 21-day span the logs' share is 0, and 0 * NaN is still NaN.
     logged = infer(make_logs(days=21))
-    assert calc.estimate_tdee(logged, 2000).logs_weight == 0
+    assert estimate(logged, 2000).logs_weight == 0
     with pytest.raises(ValueError, match=r"logged\.tdee"):
-        calc.estimate_tdee(replace(logged, tdee=value), 2000)
+        estimate(replace(logged, tdee=value), 2000)
     with pytest.raises(ValueError, match="formula"):
-        calc.estimate_tdee(logged, value)
+        estimate(logged, value)
     with pytest.raises(ValueError, match="formula"):
-        calc.estimate_tdee(None, value)
+        estimate(None, value)
 
 
 @pytest.mark.parametrize(
@@ -578,18 +586,21 @@ def test_daily_target_rejects_invalid_density(density):
 
 def test_goal_eta_loss_gain_and_fractional_day_rounding():
     eta = calc.goal_eta(85, 80, -0.5, START)
+    assert eta is not None
     assert (eta.remaining_kg, eta.weeks, eta.date) == (
         -5,
         10,
         START + timedelta(days=70),
     )
     gain = calc.goal_eta(80, 85, 0.5, START)
+    assert gain is not None
     assert (gain.remaining_kg, gain.weeks, gain.date) == (
         5,
         10,
         START + timedelta(days=70),
     )
     fractional = calc.goal_eta(80, 81, 2, START)
+    assert fractional is not None
     assert fractional.weeks == 0.5
     assert fractional.date == START + timedelta(days=4)
 
@@ -604,6 +615,7 @@ def test_goal_eta_requires_progress_toward_goal(current, goal, rate):
 @pytest.mark.parametrize("current", [80, 80.04, 79.96])
 def test_goal_eta_already_at_goal_even_without_a_rate(current):
     eta = calc.goal_eta(current, 80, 0, START)
+    assert eta is not None
     assert eta.remaining_kg == pytest.approx(80 - current)
     assert eta.weeks == 0
     assert eta.date == START
@@ -640,7 +652,7 @@ def test_window_progress_reports_missing_calories_with_full_weigh_ins():
     logs = [replace(log, calories=None) for log in make_logs()]
     # 90% of 28 bracketed days is 25.2, so 26 recorded days are needed.
     assert progress(logs) == calc.WindowProgress(29, 28, 0, 26)
-    assert infer(logs) is None
+    assert infer_or_none(logs) is None
 
 
 @pytest.mark.parametrize("missing,estimated", [(3, False), (2, True)])
@@ -649,7 +661,7 @@ def test_window_progress_matches_logged_tdee_coverage_gate(missing, estimated):
     logs[:missing] = [replace(log, calories=None) for log in logs[:missing]]
     result = progress(logs)
     assert (result.calorie_days, result.calorie_days_needed) == (28 - missing, 26)
-    assert (infer(logs) is not None) is estimated
+    assert (infer_or_none(logs) is not None) is estimated
 
 
 def test_window_progress_ignores_final_morning_intake_and_outside_logs():

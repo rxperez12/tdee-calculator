@@ -20,6 +20,9 @@
 
 - Ruff owns Python formatting and lint rules in `pyproject.toml`.
 - Annotate all functions in `src/`; strict mypy checks application and migration code.
+- Never commit code with type errors. Run `./check.sh` before every commit: strict
+  mypy (`src/`) and pyright (`src/`, `tests/`, `scripts/`, the same checker as
+  Pylance in the editor) must both report zero errors.
 - Suppressions must name a code and give a short reason, e.g.
   `# type: ignore[arg-type]  # reason`. Fix errors instead of hiding them with `Any`.
 - Follow [the testing standards](docs/testing.md). Test observable behavior with

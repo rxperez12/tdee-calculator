@@ -79,6 +79,7 @@ def test_update_same_slots_add_remove_and_both(
     upsert_session(session, MeasurementInput(DAY, readings))
     session.expire_all()
     row = get_session(session, DAY)
+    assert row is not None
     assert row.id == original_id
     assert next(r for r in row.readings if r.site == "neck").id == first_slot_id
     assert stored(row) == expected
@@ -97,6 +98,7 @@ def test_noop_preserves_timestamp_and_exact_values(session, monkeypatch):
     upsert_session(session, MeasurementInput(DAY, {Site.NECK: (value,)}))
     session.expire_all()
     row = get_session(session, DAY)
+    assert row is not None
     assert stored(row) == {("neck", 1): value}
     assert row.updated_at == MORNING
 

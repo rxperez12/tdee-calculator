@@ -108,9 +108,12 @@ def test_measurements_migration_preserves_existing_entries_and_settings(config):
         run_migrations(config)
         with Session(engine) as session:
             row = session.get(Entry, date(2026, 10, 8))
+            assert row is not None
             assert row.weight_kg == pytest.approx(80.25, abs=1e-9)
             assert row.calories == 2100
-            assert session.get(Setting, "height_cm").value == "180.5"
+            setting = session.get(Setting, "height_cm")
+            assert setting is not None
+            assert setting.value == "180.5"
         assert "measurement_readings" in table_names(config)
     finally:
         engine.dispose()
@@ -161,10 +164,11 @@ def test_backup_prunes_old_files_without_name_collisions(config) -> None:
     ]
     backup_paths = sorted(config.backup_dir.glob("tdee-*.db"))
 
-    assert all(path is not None for path in created)
-    assert len(set(created)) == 5
+    paths = [path for path in created if path is not None]
+    assert len(paths) == len(created)
+    assert len(set(paths)) == 5
     assert len(backup_paths) == config.backup_keep
-    assert backup_paths == sorted(created)[-config.backup_keep :]
+    assert backup_paths == sorted(paths)[-config.backup_keep :]
 
 
 def test_prepare_backs_up_on_second_start(config) -> None:

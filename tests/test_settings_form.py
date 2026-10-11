@@ -232,6 +232,7 @@ def test_height_bounds(fields, expected):
 def test_birth_date_age_bounds(birthday):
     result = parse_settings_form({"birth_date": birthday}, Settings(), TODAY)
     assert isinstance(result, Settings)
+    assert result.birth_date is not None
     assert result.birth_date.isoformat() == birthday
 
 
