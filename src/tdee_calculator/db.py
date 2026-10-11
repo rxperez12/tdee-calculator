@@ -1,13 +1,17 @@
 import sqlite3
 from contextlib import closing
+from datetime import date as Date
+from datetime import datetime as DateTime
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config as AlembicConfig
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, update
+from sqlalchemy.orm import Session
 
 from tdee_calculator import clock
 from tdee_calculator.config import Config
+from tdee_calculator.models import Entry, MeasurementSession
 
 MIGRATIONS_DIR = Path(__file__).with_name("migrations")
 
@@ -66,3 +70,26 @@ def backup(db_path: Path, backup_dir: Path, keep: int) -> Path | None:
 def prepare(config: Config) -> Path | None:
     ensure_dirs(config)
     return backup(config.db_path, config.backup_dir, config.backup_keep)
+
+
+def claim_version(
+    session: Session,
+    model: type[Entry] | type[MeasurementSession],
+    day: Date,
+    expected_version: str,
+) -> bool:
+    """Lock `day`'s row for this transaction if it is still `expected_version`.
+
+    The no-op UPDATE matches only an unchanged row, and the write it starts holds
+    SQLite's lock until commit, so no other save can land between check and write.
+    """
+    try:
+        expected = DateTime.fromisoformat(expected_version)
+    except ValueError:
+        return False
+    result = session.connection().execute(
+        update(model)
+        .where(model.date == day, model.updated_at == expected)
+        .values(updated_at=model.updated_at)
+    )
+    return result.rowcount == 1

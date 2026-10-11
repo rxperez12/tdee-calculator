@@ -2,10 +2,12 @@
 
 from datetime import date as Date
 
-from sqlalchemy import select
+from sqlalchemy import insert, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from tdee_calculator import clock
+from tdee_calculator.db import claim_version
 from tdee_calculator.measurement_form import MeasurementInput
 from tdee_calculator.models import MeasurementReading, MeasurementSession
 
@@ -48,6 +50,28 @@ def upsert_session(session: Session, data: MeasurementInput) -> MeasurementSessi
         row.updated_at = clock.now()
     session.commit()
     return row
+
+
+def upsert_session_if_unchanged(
+    session: Session, data: MeasurementInput, expected_version: str
+) -> MeasurementSession | None:
+    """Save only if `data.date`'s session is still `expected_version` ("" for none).
+
+    Returns None, saving nothing, when another save got there first.
+    """
+    if expected_version:
+        if not claim_version(session, MeasurementSession, data.date, expected_version):
+            session.rollback()
+            return None
+    else:
+        try:
+            session.connection().execute(
+                insert(MeasurementSession).values(date=data.date)
+            )
+        except IntegrityError:
+            session.rollback()
+            return None
+    return upsert_session(session, data)
 
 
 def delete_session(session: Session, day: Date) -> bool:

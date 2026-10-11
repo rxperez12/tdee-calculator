@@ -135,12 +135,19 @@ def save(
         return render_measurements(
             request, session, settings, values, errors=result.errors, status_code=422
         )
-    conflict = edit_conflict(
-        result.date,
-        values.get("loaded_date", ""),
-        values.get("loaded_version", ""),
-        current,
-    )
+    loaded_date = values.get("loaded_date", "")
+    loaded_version = values.get("loaded_version", "")
+    conflict = edit_conflict(result.date, loaded_date, loaded_version, current)
+    saved = None
+    if conflict is None:
+        saved = measurements.upsert_session_if_unchanged(
+            session, result, row_version(current)
+        )
+    if conflict is None and saved is None:
+        # Another save landed after the check: explain it as if it came first.
+        latest = measurements.get_session(session, result.date)
+        conflict = edit_conflict(result.date, loaded_date, loaded_version, latest)
+        conflict = conflict or "stale"
     if conflict is not None:
         return render_measurements(
             request,
@@ -151,7 +158,6 @@ def save(
             conflict_date=result.date if conflict == "conflict" else None,
             stale_date=result.date if conflict == "stale" else None,
         )
-    measurements.upsert_session(session, result)
     saved_date = result.date.isoformat()
     return RedirectResponse(
         f"/measurements?date={saved_date}&saved={saved_date}", status_code=303

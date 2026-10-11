@@ -195,6 +195,16 @@ def save_entry(
     conflict = edit_conflict(
         result.date, values["loaded_date"], values["loaded_version"], current
     )
+    saved = None
+    if conflict is None:
+        saved = entries.upsert_entry_if_unchanged(session, result, row_version(current))
+    if conflict is None and saved is None:
+        # Another save landed after the check: explain it as if it came first.
+        latest = entries.get_entry(session, result.date)
+        conflict = edit_conflict(
+            result.date, values["loaded_date"], values["loaded_version"], latest
+        )
+        conflict = conflict or "stale"
     if conflict is not None:
         return render_home(
             request,
@@ -206,7 +216,6 @@ def save_entry(
             stale_date=result.date if conflict == "stale" else None,
             chart_range=selected_range,
         )
-    entries.upsert_entry(session, result)
     saved_date = result.date.isoformat()
     return RedirectResponse(
         f"/?date={saved_date}&range={selected_range}&saved={saved_date}",

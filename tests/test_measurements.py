@@ -8,12 +8,14 @@ from sqlalchemy.orm import Session
 from tdee_calculator import clock
 from tdee_calculator.calc import Site
 from tdee_calculator.db import make_engine, run_migrations
+from tdee_calculator.edits import row_version
 from tdee_calculator.measurement_form import MeasurementInput
 from tdee_calculator.measurements import (
     all_sessions,
     delete_session,
     get_session,
     upsert_session,
+    upsert_session_if_unchanged,
 )
 from tdee_calculator.models import MeasurementReading, MeasurementSession
 
@@ -118,3 +120,31 @@ def test_unique_constraints_and_rollback_preserve_saved_data(session, duplicate)
         session.commit()
     session.rollback()
     assert stored(get_session(session, DAY)) == {("neck", 1): 35}
+
+
+def test_guarded_save_creates_only_when_no_session_exists(session):
+    first = MeasurementInput(DAY, {Site.NECK: (35,)})
+    assert upsert_session_if_unchanged(session, first, "")
+    second = MeasurementInput(DAY, {Site.NECK: (40,)})
+    assert upsert_session_if_unchanged(session, second, "") is None
+    session.expire_all()
+    row = get_session(session, DAY)
+    assert row is not None
+    assert stored(row) == {("neck", 1): 35}
+
+
+def test_guarded_save_updates_only_the_version_it_was_given(session, monkeypatch):
+    row = upsert_session(session, MeasurementInput(DAY, {Site.NECK: (35,)}))
+    loaded = row_version(row)
+    monkeypatch.setattr(clock, "now", lambda: EVENING)
+    changed = MeasurementInput(DAY, {Site.NECK: (36,)})
+    saved = upsert_session_if_unchanged(session, changed, loaded)
+    assert saved is not None
+    assert saved.updated_at == EVENING
+    late = MeasurementInput(DAY, {Site.NECK: (99,)})
+    for version in (loaded, "", "not-a-version"):
+        assert upsert_session_if_unchanged(session, late, version) is None
+    session.expire_all()
+    row = get_session(session, DAY)
+    assert row is not None
+    assert stored(row) == {("neck", 1): 36}

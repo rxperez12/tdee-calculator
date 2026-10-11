@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from tdee_calculator import clock
 from tdee_calculator.calc import DayLog
 from tdee_calculator.db import make_engine, run_migrations
+from tdee_calculator.edits import row_version
 from tdee_calculator.entries import (
     all_day_logs,
     all_entries,
@@ -15,6 +16,7 @@ from tdee_calculator.entries import (
     get_entry,
     recent_entries,
     upsert_entry,
+    upsert_entry_if_unchanged,
 )
 from tdee_calculator.entry_form import EntryInput
 from tdee_calculator.models import Entry
@@ -134,3 +136,32 @@ def test_count_entries_counts_every_row(session) -> None:
         upsert_entry(session, EntryInput(DAY - timedelta(days=offset), 80, None))
     upsert_entry(session, EntryInput(DAY, 81, 2000))  # update, not a new row
     assert count_entries(session) == 3
+
+
+def test_guarded_save_creates_only_when_no_entry_exists(session) -> None:
+    assert upsert_entry_if_unchanged(session, EntryInput(DAY, 80.25, None), "")
+    assert upsert_entry_if_unchanged(session, EntryInput(DAY, 90, None), "") is None
+    session.expire_all()
+    stored = get_entry(session, DAY)
+    assert stored is not None
+    assert stored.weight_kg == pytest.approx(80.25, abs=1e-9)
+
+
+def test_guarded_save_updates_only_the_version_it_was_given(
+    session, monkeypatch
+) -> None:
+    row = upsert_entry(session, EntryInput(DAY, 80.25, None))
+    loaded = row_version(row)
+    monkeypatch.setattr(clock, "now", lambda: datetime(2026, 10, 8, 9))
+    saved = upsert_entry_if_unchanged(session, EntryInput(DAY, 81, None), loaded)
+    assert saved is not None
+    assert saved.updated_at == datetime(2026, 10, 8, 9)
+    for version in (loaded, "", "not-a-version"):
+        assert (
+            upsert_entry_if_unchanged(session, EntryInput(DAY, 99, None), version)
+            is None
+        )
+    session.expire_all()
+    stored = get_entry(session, DAY)
+    assert stored is not None
+    assert stored.weight_kg == 81
