@@ -26,7 +26,7 @@ class Config:
 def load_config() -> Config:
     return Config(
         host=os.environ.get("TDEE_HOST", "127.0.0.1"),
-        port=int(os.environ.get("TDEE_PORT", "8000")),
+        port=int(os.environ.get("TDEE_PORT", "8765")),
         data_dir=Path(os.environ.get("TDEE_DATA_DIR", "data")),
         backup_keep=int(os.environ.get("TDEE_BACKUP_KEEP", "10")),
     )
