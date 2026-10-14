@@ -7,17 +7,20 @@ and always shown with the date of the measurements they come from.
 
 ## Delivery
 
-This milestone ships as three PRs under this one plan. Each PR is usable on its own
-and has its own "done when". The decisions below apply to all three.
+This milestone ships as four increments. Each is usable on its own and has its own
+"done when". A2 has a separate follow-up plan; the decisions below continue to
+apply except for the home-page addition explicitly scoped there.
 
 | PR | Contents | Status |
 | --- | --- | --- |
 | **A. Tape measurements + Navy estimate** | Measurement sessions with repeated readings, instructions, the Navy estimate, history | Implemented; locally verified |
+| **A2. Home logging and weekly cadence** | Home summary, inline logging/editing, and a suggested weekly cadence; [follow-up plan](2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md) | Planned next, before B |
 | **B. External body-fat results** | Separate table, form, and history for results recorded elsewhere, with their source | Outline only; detail before starting |
 | **C. Context and polish** | Waist-to-height ratio, BMI (if kept), an estimate chart, seed data | Outline only; optional |
 
-B does not depend on A and may ship in either order. C is optional: if A and B cover
-what's needed, C moves to the later wishlist and P2.1 is done.
+A2 depends on A. B's external-results storage does not depend on A, but the current
+delivery order puts A2 before B. C is optional: if A, A2, and B cover what's needed,
+C moves to the later wishlist and P2.1 is done.
 
 ## Decisions
 
