@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Measurements · TDEE Tracker{% endblock %}
+{% block main_class %}wide{% endblock %}
+
+{% macro estimate(row) %}
+  {% if row.estimate is not none %}{{ '%.0f' | format(row.estimate) }}%
+  {% elif row.needs_settings %}<a href="/settings">{{ row.reason }}</a>
+  {% else %}{{ row.reason }}{% endif %}
+{% endmacro %}
+
+{% block content %}
+  <h1>Measurements</h1>
+  <p>Tape measurements and estimated body fat, recorded on their own dates.</p>
+  <section class="hero" aria-labelledby="estimate-heading">
+    <h2 id="estimate-heading">Latest body-fat estimate</h2>
+    {% if latest %}
+      <p class="hero-value">{{ estimate(latest) }}</p>
+      <p class="hero-sub">Traditional Navy equation · measured <time datetime="{{ latest.date }}">{{ latest.date | short_date(today) }}</time></p>
+      {% for row in newer %}
+        <p class="help">Newer measurements on {{ row.date | short_date(today) }}: {{ estimate(row) }}</p>
+      {% endfor %}
+    {% elif rows %}
+      <p>{{ estimate(rows[0]) }} · measured {{ rows[0].date | short_date(today) }}</p>
+    {% else %}
+      <p>No measurements yet. Start with any one reading below.</p>
+    {% endif %}
+    <p class="help">A tape-based estimate, with uncertainty of several percentage points. It does not change your calorie target.</p>
+  </section>
+
+  <section aria-labelledby="log-heading">
+    <h2 id="log-heading">{{ 'Edit measurements' if form_values.get('loaded_version') else 'Log measurements' }}</h2>
+    {% if saved %}<p class="notice" role="status">Saved measurements for {{ saved | short_date(today) }}.</p>{% endif %}
+    {% if notice %}<p class="notice" role="alert">{{ notice }}</p>{% endif %}
+    {% if errors.get('form') %}<p class="error" role="alert">{{ errors['form'] }}</p>{% endif %}
+    {% if conflict_date %}
+      <p class="error" role="alert">{{ conflict_date | short_date(today) }} already has saved measurements. <a href="/measurements?date={{ conflict_date }}">Edit this session</a> before saving.</p>
+    {% endif %}
+    {% if stale_date %}
+      <p class="error" role="alert">{{ stale_date | short_date(today) }} changed since this page loaded. <a href="/measurements?date={{ stale_date }}">Reload this session</a> to see the saved readings.</p>
+    {% endif %}
+    <form method="post" action="/measurements" class="measurement-form">
+      <input type="hidden" name="loaded_date" value="{{ form_values.get('loaded_date', '') }}">
+      <input type="hidden" name="loaded_version" value="{{ form_values.get('loaded_version', '') }}">
+      <input type="hidden" name="weight_unit" value="{{ form_values.get('weight_unit', '') }}">
+      <div class="field measurement-date">
+        <label for="measurement-date">Date</label>
+        <input id="measurement-date" name="date" type="date" max="{{ today }}" value="{{ form_values.get('date', '') }}" required {% if errors.get('date') %}aria-invalid="true" aria-describedby="date-error"{% endif %}>
+        {% if errors.get('date') %}<p class="error" id="date-error">{{ errors['date'] }}</p>{% endif %}
+      </div>
+      <p class="help">Enter any sites you want to track. Each site accepts one to three readings; its history shows their mean.</p>
+      {% for site, label in sites.items() %}
+        <fieldset>
+          <legend>{{ label }} ({{ length_unit }})</legend>
+          <div class="reading-grid">
+            {% for slot in range(1, 4) %}
+              {% set field = site.value ~ '_' ~ slot %}
+              <div class="field">
+                <label for="{{ field }}"><span class="visually-hidden">{{ label }} </span>Reading {{ slot }}</label>
+                <input id="{{ field }}" name="{{ field }}" type="number" step="any" inputmode="decimal" min="{{ limits[site][0] }}" max="{{ limits[site][1] }}" value="{{ form_values.get(field, '') }}" {% if errors.get(field) %}aria-invalid="true" aria-describedby="{{ field }}-error"{% endif %}>
+                {% if errors.get(field) %}<p class="error" id="{{ field }}-error">{{ errors[field] }}</p>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+      {% endfor %}
+      <button type="submit">Save measurements</button>
+    </form>
+  </section>
+
+  <details class="measurement-instructions" {% if not rows %}open{% endif %}>
+    <summary>How to measure</summary>
+    <p>Use a non-stretch tape, snug against the body without compressing it. Measure the neck, abdomen, and waist on bare skin. Keep your shoulders relaxed and look straight ahead.</p>
+    <dl>
+      <dt>Neck</dt><dd>Just below the larynx (Adam's apple), perpendicular to the long axis of the neck. Keep the tape as close to horizontal as anatomically possible, at the same height in front and back, avoiding the shoulder muscles.</dd>
+      <dt>Abdomen (navel)</dt><dd>Across the belly button with arms at your sides, at the end of a normal, relaxed exhale. Keep the tape level.</dd>
+      <dt>Waist (narrowest point)</dt><dd>At the smallest circumference, usually between the navel and the bottom of the breastbone. Keep the tape level, arms at your sides, and measure at the end of a normal exhale.</dd>
+      <dt>Hips</dt><dd>Around the widest part of the buttocks, with feet together and the tape level. The Navy guide measures over its physical-training shorts; avoid shaping or compressive clothing.</dd>
+    </dl>
+    {% if settings.sex and settings.sex.value == 'male' %}
+      <p>Your estimate needs neck and abdomen readings, plus height in Settings.</p>
+    {% elif settings.sex %}
+      <p>Your estimate needs neck, waist, and hip readings, plus height in Settings.</p>
+    {% else %}
+      <p>The male equation needs neck and abdomen; the female equation needs neck, waist, and hips. <a href="/settings">Set sex and height in Settings</a> to see an estimate.</p>
+    {% endif %}
+    <p>For this app, take up to three readings per site. We keep the raw readings and use their mean without half-inch rounding. Try to measure at the same time of day, such as in the morning before eating.</p>
+    <p class="help">Site guidance: <a href="https://www.calculator.net/pdf/navy-physical-readiness-program.pdf">2021 Navy body composition guide</a>, section 3. This app uses the traditional Hodgdon–Beckett equation with its own repeated-reading approach.</p>
+  </details>
+
+  <section aria-labelledby="history-heading">
+    <h2 id="history-heading">Measurement history</h2>
+    {% if rows %}
+      <div class="table-scroll">
+        <table class="measurement-history">
+          <caption class="visually-hidden">Session means in {{ length_unit }} and traditional Navy estimates, newest first</caption>
+          <thead><tr><th scope="col">Date</th>{% for label in sites.values() %}<th scope="col" class="number">{{ label }} ({{ length_unit }})</th>{% endfor %}<th scope="col">Body fat · Navy</th><th scope="col">Actions</th></tr></thead>
+          <tbody>
+            {% for row in rows %}
+              <tr>
+                <th scope="row"><time datetime="{{ row.date }}">{{ row.date | short_date(today) }}</time></th>
+                {% for site in sites %}<td class="number">{{ row.means.get(site, '—') }}</td>{% endfor %}
+                <td>{{ estimate(row) }}</td>
+                <td class="actions">
+                  <a href="/measurements?date={{ row.date }}" aria-label="Edit measurements {{ row.date }}">Edit</a>
+                  <form method="post" action="/measurements/{{ row.date }}/delete"><button type="submit" aria-label="Delete measurements {{ row.date }}">Delete</button></form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}<p>Your saved sessions will appear here.</p>{% endif %}
+    <p class="help">Estimates use your current sex and height from Settings.</p>
+  </section>
+{% endblock %}

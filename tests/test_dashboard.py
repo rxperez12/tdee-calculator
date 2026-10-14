@@ -17,6 +17,7 @@ from tdee_calculator.dashboard import (
     GoalTooSlow,
     NoGoal,
     NoTarget,
+    Range,
     TableRow,
     Target,
     TargetBelowFloor,
@@ -338,7 +339,7 @@ def test_range_lengths(rng, first_days_ago, days):
     assert chart.start == TODAY - timedelta(days=days)
 
 
-def on_track_chart(goal, rate, rng="3m"):
+def on_track_chart(goal, rate, rng: Range = "3m"):
     settings = Settings(goal_weight_kg=goal, rate_kg_per_week=rate)
     result = build_dashboard(flat_logs(), settings, TODAY)
     assert isinstance(result.goal, GoalOnTrack)
@@ -408,10 +409,18 @@ def test_payload_in_pounds():
     assert payload["start"] == "2026-10-05"
     assert payload["end"] == "2026-10-16"
     # 80 kg = 176.37 lb; 75 kg = 165.35 lb, each shown to 0.1.
-    assert payload["weighIns"][-1] == {"x": "2026-10-08", "y": 176.4}
-    assert payload["trend"][-1] == {"x": "2026-10-08", "y": 176.4}
+    weigh_ins, trend, projection = (
+        payload["weighIns"],
+        payload["trend"],
+        payload["projection"],
+    )
+    assert isinstance(weigh_ins, list)
+    assert isinstance(trend, list)
+    assert isinstance(projection, list)
+    assert weigh_ins[-1] == {"x": "2026-10-08", "y": 176.4}
+    assert trend[-1] == {"x": "2026-10-08", "y": 176.4}
     assert payload["goal"] == 165.3
-    assert payload["projection"][0] == {"x": "2026-10-08", "y": 176.4}
+    assert projection[0] == {"x": "2026-10-08", "y": 176.4}
     assert chart_payload(build_chart(result, settings, "4w"), WeightUnit.KG)[
         "goal"
     ] == pytest.approx(75, abs=1e-9)

@@ -10,7 +10,7 @@
   <body>
     <main class="{% block main_class %}{% endblock %}">
       <nav aria-label="Main navigation">
-        {% for path, label in [('/', 'Today'), ('/history', 'History'), ('/settings', 'Settings')] %}
+        {% for path, label in [('/', 'Today'), ('/history', 'History'), ('/measurements', 'Measurements'), ('/settings', 'Settings')] %}
           <a href="{{ path }}" {% if request.url.path == path %}aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
       </nav>

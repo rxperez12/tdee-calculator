@@ -2,6 +2,7 @@ import pytest
 
 from tdee_calculator.units import (
     EnergyUnit,
+    LengthUnit,
     WeightUnit,
     cm_to_feet_inches,
     density_from_kcal_per_kg,
@@ -12,12 +13,32 @@ from tdee_calculator.units import (
     format_density,
     format_energy,
     format_energy_display,
+    format_height,
+    format_length,
     format_rate,
     format_weight,
+    length_from_cm,
+    length_to_cm,
+    length_unit_for,
     matching_bound,
     weight_from_kg,
     weight_to_kg,
 )
+
+
+@pytest.mark.parametrize("unit", list(LengthUnit))
+def test_length_conversion_round_trip(unit):
+    assert length_to_cm(length_from_cm(83.12345, unit), unit) == pytest.approx(
+        83.12345, abs=1e-9
+    )
+
+
+def test_length_units_and_independent_inch_conversion():
+    assert length_unit_for(WeightUnit.KG) is LengthUnit.CM
+    assert length_unit_for(WeightUnit.LB) is LengthUnit.IN
+    assert length_to_cm(15.5, LengthUnit.IN) == pytest.approx(39.37, abs=1e-9)
+    assert format_length(39.37, LengthUnit.IN) == "15.5"
+    assert format_length(39.37, LengthUnit.CM) == "39.4"
 
 
 def test_known_conversions():
@@ -119,3 +140,19 @@ def test_energy_display_rounding_up_never_shows_less():
         format_energy_display(2000.0000000000002, EnergyUnit.KCAL, round_up=True)
         == "2,000"
     )
+
+
+@pytest.mark.parametrize(
+    "cm,unit,expected",
+    [
+        (180, WeightUnit.KG, "180 cm"),
+        (100, WeightUnit.KG, "100 cm"),
+        (250, WeightUnit.KG, "250 cm"),
+        (180, WeightUnit.LB, "5 ft 11 in"),  # 70.87 in, nearest half inch is 71
+        (179.07, WeightUnit.LB, "5 ft 10.5 in"),  # 70.5 in exactly
+        (100, WeightUnit.LB, "3 ft 3.5 in"),  # 39.37 in
+        (250, WeightUnit.LB, "8 ft 2.5 in"),  # 98.43 in
+    ],
+)
+def test_format_height(cm, unit, expected):
+    assert format_height(cm, unit) == expected

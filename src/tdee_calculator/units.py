@@ -8,11 +8,35 @@ KG_PER_LB = 0.45359237
 KJ_PER_KCAL = 4.184
 CM_PER_INCH = 2.54
 DISPLAY_STEP = {"kcal": 10, "kJ": 50}
+# Accepted body weights, shared by the daily entry and the goal weight.
+MIN_WEIGHT_KG = 20
+MAX_WEIGHT_KG = 400
 
 
 class WeightUnit(StrEnum):
     KG = "kg"
     LB = "lb"
+
+
+class LengthUnit(StrEnum):
+    CM = "cm"
+    IN = "in"
+
+
+def length_unit_for(weight: WeightUnit) -> LengthUnit:
+    return LengthUnit.IN if weight is WeightUnit.LB else LengthUnit.CM
+
+
+def length_to_cm(value: float, unit: LengthUnit) -> float:
+    return value * CM_PER_INCH if unit is LengthUnit.IN else value
+
+
+def length_from_cm(cm: float, unit: LengthUnit) -> float:
+    return cm / CM_PER_INCH if unit is LengthUnit.IN else cm
+
+
+def format_length(cm: float, unit: LengthUnit) -> str:
+    return f"{length_from_cm(cm, unit):.1f}"
 
 
 class EnergyUnit(StrEnum):
@@ -56,6 +80,13 @@ def cm_to_feet_inches(cm: float) -> tuple[int, float]:
     half_inches = round(cm / CM_PER_INCH * 2)
     feet, remaining = divmod(half_inches, 24)
     return feet, remaining / 2
+
+
+def format_height(cm: float, weight: WeightUnit) -> str:
+    if weight is WeightUnit.KG:
+        return f"{cm:.0f} cm"
+    feet, inches = cm_to_feet_inches(cm)
+    return f"{feet} ft {inches:g} in"
 
 
 def format_weight(kg: float, unit: WeightUnit) -> str:

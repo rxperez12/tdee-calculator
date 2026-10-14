@@ -8,4 +8,5 @@ command -v uv >/dev/null || { echo "uv not found: https://docs.astral.sh/uv/"; e
 uv run --locked ruff format --check .
 uv run --locked ruff check .
 uv run --locked mypy
+uv run --locked pyright
 uv run --locked pytest --cov

@@ -5,11 +5,11 @@ intake is mean-filled only within the fitted interval; coverage and blend shares
 are heuristics, not statistical confidence or protection against water-weight bias.
 """
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum, StrEnum
-from math import isfinite
+from math import isfinite, log10
 from statistics import linear_regression, mean
 from typing import Literal
 
@@ -49,6 +49,59 @@ class LoggedTdee:
 class Sex(StrEnum):
     MALE = "male"
     FEMALE = "female"
+
+
+class Site(StrEnum):
+    NECK = "neck"
+    ABDOMEN = "abdomen"
+    WAIST = "waist"
+    HIP = "hip"
+
+
+def mean_reading(values: Sequence[float]) -> float:
+    if not values:
+        raise ValueError("readings must not be empty")
+    for value in values:
+        _require_finite(value, "reading")
+    return mean(values)
+
+
+def navy_body_fat(
+    sex: Sex, height_cm: float, sites: Mapping[Site, float]
+) -> float | None:
+    """Traditional Hodgdon-Beckett inch equations; return unrounded percent.
+
+    Raw site means are used without the Navy assessment's half-inch rounding.
+    """
+    _require_finite(height_cm, "height_cm")
+    if height_cm <= 0:
+        raise ValueError("height_cm must be positive")
+    required = (
+        (Site.NECK, Site.ABDOMEN)
+        if sex == Sex.MALE
+        else (Site.NECK, Site.WAIST, Site.HIP)
+    )
+    if any(site not in sites for site in required):
+        return None
+    for site in required:
+        _require_finite(sites[site], site.value)
+    if sex == Sex.MALE:
+        circumference = sites[Site.ABDOMEN] - sites[Site.NECK]
+        if circumference <= 0:
+            raise ValueError("abdomen must be greater than neck")
+        return (
+            86.010 * log10(circumference / 2.54)
+            - 70.041 * log10(height_cm / 2.54)
+            + 36.76
+        )
+    circumference = sites[Site.WAIST] + sites[Site.HIP] - sites[Site.NECK]
+    if circumference <= 0:
+        raise ValueError("waist plus hip must be greater than neck")
+    return (
+        163.205 * log10(circumference / 2.54)
+        - 97.684 * log10(height_cm / 2.54)
+        - 78.387
+    )
 
 
 class ActivityLevel(Enum):

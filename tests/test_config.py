@@ -17,7 +17,7 @@ def test_load_config_uses_defaults(monkeypatch) -> None:
     config = load_config()
 
     assert config.host == "127.0.0.1"
-    assert config.port == 8000
+    assert config.port == 8765
     assert config.data_dir == Path("data")
     assert config.backup_keep == 10
 

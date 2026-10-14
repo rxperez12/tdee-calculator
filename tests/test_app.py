@@ -45,11 +45,12 @@ class FormInputs(HTMLParser):
             self.in_form = (
                 attributes.get("action") == self.action
                 if self.action is not None
-                else attributes.get("method", "get").lower() == "post"
+                else (attributes.get("method") or "get").lower() == "post"
             )
-        if self.in_form and tag == "input" and "name" in attributes:
-            self.values[attributes["name"]] = attributes.get("value", "")
-            self.inputs[attributes["name"]] = attributes
+        name = attributes.get("name")
+        if self.in_form and tag == "input" and name is not None:
+            self.values[name] = attributes.get("value") or ""
+            self.inputs[name] = attributes
 
     def handle_endtag(self, tag) -> None:
         if tag == "form":

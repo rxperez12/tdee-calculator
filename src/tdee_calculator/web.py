@@ -42,6 +42,15 @@ def change_phrase(kg_per_week: float, unit: WeightUnit, ongoing: bool = False) -
     return f"{verb} {amount} {unit.value} a week"
 
 
+def requested_day(text: str | None, today: Date) -> Date:
+    """The `?date=` a page should load: today when missing or invalid, never later."""
+    try:
+        day = Date.fromisoformat(text or "")
+    except ValueError:
+        return today
+    return min(day, today)
+
+
 def is_state(value: object, name: str) -> bool:
     """Jinja test for the dashboard's state dataclasses: `x is state("Target")`."""
     return type(value).__name__ == name
@@ -95,6 +104,10 @@ FormDependency = Annotated[SettingsValues, Depends(get_form_values)]
 
 def units_match(values: dict[str, str], settings: Settings) -> bool:
     return (
-        values.get("weight_unit") == settings.weight_unit.value
+        weight_unit_matches(values, settings)
         and values.get("energy_unit") == settings.energy_unit.value
     )
+
+
+def weight_unit_matches(values: dict[str, str], settings: Settings) -> bool:
+    return values.get("weight_unit") == settings.weight_unit.value

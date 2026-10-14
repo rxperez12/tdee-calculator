@@ -6,15 +6,17 @@ from dataclasses import dataclass, replace
 from datetime import date as Date
 
 from tdee_calculator.calc import ActivityLevel, Sex, age_on
-from tdee_calculator.entry_form import MAX_WEIGHT_KG, MIN_WEIGHT_KG
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import (
+    MAX_WEIGHT_KG,
+    MIN_WEIGHT_KG,
     EnergyUnit,
     WeightUnit,
     cm_to_feet_inches,
     density_to_kcal_per_kg,
     feet_inches_to_cm,
     format_density,
+    format_height,
     format_rate,
     format_weight,
     matching_bound,
@@ -120,13 +122,6 @@ def _optional_number(
     if not text:
         return None
     return _number(text, key, label, lower, upper, convert, formatter, errors)
-
-
-def format_height(cm: float, weight: WeightUnit) -> str:
-    if weight is WeightUnit.KG:
-        return f"{cm:.0f} cm"
-    feet, inches = cm_to_feet_inches(cm)
-    return f"{feet} ft {inches:g} in"
 
 
 def _height(
