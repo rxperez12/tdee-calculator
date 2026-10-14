@@ -14,7 +14,7 @@ apply except for the home-page addition explicitly scoped there.
 | PR | Contents | Status |
 | --- | --- | --- |
 | **A. Tape measurements + Navy estimate** | Measurement sessions with repeated readings, instructions, the Navy estimate, history | Merged into main |
-| **A2. Home logging and weekly cadence** | Home summary, inline logging/editing, and a suggested weekly cadence; [follow-up plan](2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md) | Implemented; locally verified; not yet merged |
+| **A2. Home logging and weekly cadence** | Home summary, inline logging/editing, and a suggested weekly cadence; [follow-up plan](2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md) | Merged into main |
 | **B. External body-fat results** | Separate table, form, and history for results recorded elsewhere, with their source | Outline only; detail before starting |
 | **C. Context and polish** | Waist-to-height ratio, BMI (if kept), an estimate chart, seed data | Outline only; optional |
 
@@ -307,6 +307,14 @@ and additional sessions remain unrestricted.
 - `./check.sh`: 754 tests pass, 99.95% branch coverage, and zero mypy/pyright
   errors. Temporary-data Chromium checks verified both sexes, history switching,
   stale-setting recovery, keyboard operation, and 1280px/375px layouts.
+
+### Merge record — October 14, 2026
+
+- A2 and the sex-specific measurement updates were merged directly into main
+  from `feat/home-measurements` by fast-forward to `7075466`.
+- Before merging, `./check.sh` passed: 754 tests, 99.95% branch coverage,
+  and zero formatting, lint, mypy, or pyright errors.
+- B remains an outline and needs its own implementation plan.
 
 ## B. External body-fat results (outline)
 

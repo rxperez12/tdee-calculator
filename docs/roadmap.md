@@ -95,8 +95,7 @@ for every item. Dependencies refer to Phase 2 milestones unless stated otherwise
 
 P2.1 is in progress: A (tape measurements and Navy estimates) is merged into main.
 A2 (home summary, inline logging/editing, and a suggested weekly cadence) is
-implemented and locally verified on `feat/home-measurements`; it is not yet
-merged. B (external results) is next and still needs its detailed plan.
+merged into main. B (external results) is next and still needs its detailed plan.
 C is optional.
 The other Phase 2 milestones are unstarted. P2.8–P2.10 may move earlier when their
 prerequisites and usefulness justify it. Detailed acceptance criteria belong in
