@@ -32,7 +32,7 @@
   <input type="hidden" name="energy_unit" value="{{ form_values['energy_unit'] }}">
   <div class="field">
     <label for="weight">Weight ({{ settings.weight_unit.value }})</label>
-    <input id="weight" name="weight" type="number" step="any" inputmode="decimal" min="{{ weight_min }}" max="{{ weight_max }}" value="{{ form_values['weight'] }}" autofocus
+    <input id="weight" name="weight" type="number" step="any" inputmode="decimal" min="{{ weight_min }}" max="{{ weight_max }}" value="{{ form_values['weight'] }}" {% if not circumference_open %}autofocus{% endif %}
       {% if errors.get('weight') %}aria-invalid="true" aria-describedby="weight-error"{% endif %}>
     {% if errors.get('weight') %}<p class="error" id="weight-error">{{ errors['weight'] }}</p>{% endif %}
   </div>

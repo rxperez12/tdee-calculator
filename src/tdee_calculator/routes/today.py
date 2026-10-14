@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from tdee_calculator import clock, entries
+from tdee_calculator import clock, entries, measurements
 from tdee_calculator.dashboard import (
     RANGE_LABELS,
     RANGES,
@@ -22,6 +22,13 @@ from tdee_calculator.entry_form import (
     MIN_CALORIES,
     EntryFormErrors,
     parse_entry_form,
+)
+from tdee_calculator.measurement_dashboard import build_measurement_dashboard
+from tdee_calculator.routes.measurement_context import (
+    MeasurementFormContext,
+    build_form_context,
+    measurement_url,
+    measurement_values,
 )
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import (
@@ -83,6 +90,9 @@ def render_home(
     stale_date: Date | None = None,
     notice: str | None = None,
     chart_range: Range = "3m",
+    measurement_form: MeasurementFormContext | None = None,
+    circumference_date: str | None = None,
+    circumference_saved: Date | None = None,
 ) -> HTMLResponse:
     today = clock.today()
     try:
@@ -92,6 +102,25 @@ def render_home(
     logs = entries.all_day_logs(session)
     dashboard = build_dashboard(logs, settings, today)
     chart = build_chart(dashboard, settings, chart_range)
+    circumference_open = (
+        measurement_form is not None
+        or circumference_date is not None
+        or circumference_saved is not None
+    )
+    home_date = requested_day(form_values["entry_date"], today)
+    if measurement_form is None:
+        measurement_form = build_form_context(
+            settings,
+            measurement_values(
+                session, requested_day(circumference_date, today), settings
+            ),
+            saved=circumference_saved,
+            home_date=home_date,
+            chart_range=chart_range,
+        )
+    measurement_dashboard = build_measurement_dashboard(
+        measurements.all_sessions(session), settings, today
+    )
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -119,6 +148,19 @@ def render_home(
             "weight_max": format_weight(MAX_WEIGHT_KG, settings.weight_unit),
             "energy_min": format_energy(MIN_CALORIES, settings.energy_unit),
             "energy_max": format_energy(MAX_CALORIES, settings.energy_unit),
+            "measurement_dashboard": measurement_dashboard,
+            "measurement_form": measurement_form,
+            "circumference_open": circumference_open,
+            "circumference_log_url": measurement_url(
+                today, home_date=home_date, chart_range=chart_range
+            ),
+            "circumference_edit_url": measurement_url(
+                measurement_dashboard.newest.date,
+                home_date=home_date,
+                chart_range=chart_range,
+            )
+            if measurement_dashboard.newest is not None
+            else None,
         },
         status_code=status_code,
     )
@@ -132,6 +174,8 @@ def home(
     date: str | None = None,
     saved: Date | None = None,
     chart_range: Annotated[str | None, Query(alias="range")] = None,
+    circumference_date: str | None = None,
+    circumference_saved: Date | None = None,
 ) -> HTMLResponse:
     values = entry_values(session, requested_day(date, clock.today()), settings)
     return render_home(
@@ -141,6 +185,8 @@ def home(
         settings,
         saved=saved,
         chart_range=parse_range(chart_range),
+        circumference_date=circumference_date,
+        circumference_saved=circumference_saved,
     )
 
 

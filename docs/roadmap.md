@@ -93,10 +93,11 @@ for every item. Dependencies refer to Phase 2 milestones unless stated otherwise
 | P2.9 | **Equation and estimation explorer** | Supported body-fat and TDEE methods can be compared with their required inputs and assumptions; users preview target changes before choosing an active TDEE method. | P2.1, P2.3 |
 | P2.10 | **AI-ready reports and richer exports** | A previewable report exports a selected period, phase, or experiment with records, units, sources, methods, and missing-data context; personal details are selectable and source restrictions respected. | v1 CSV export; P2.3; P2.7 for experiment reports |
 
-P2.1 is in progress: A (tape measurements and Navy estimates) is implemented and
-locally verified; A2 (home summary, inline logging/editing, and a suggested weekly
-cadence) is planned next, before B. B (external results) still needs its detailed
-plan. C is optional.
+P2.1 is in progress: A (tape measurements and Navy estimates) is merged into main.
+A2 (home summary, inline logging/editing, and a suggested weekly cadence) is
+implemented and locally verified on `feat/home-measurements`; it is not yet
+merged. B (external results) is next and still needs its detailed plan.
+C is optional.
 The other Phase 2 milestones are unstarted. P2.8–P2.10 may move earlier when their
 prerequisites and usefulness justify it. Detailed acceptance criteria belong in
 each milestone's implementation plan.

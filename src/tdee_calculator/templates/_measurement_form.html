@@ -1,0 +1,42 @@
+    <h2 id="circumference-log-heading">{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</h2>
+    {% if measurement_form.saved %}<p class="notice" role="status">Saved measurements for {{ measurement_form.saved | short_date(today) }}.</p>{% endif %}
+    {% if measurement_form.notice %}<p class="notice" role="alert">{{ measurement_form.notice }}</p>{% endif %}
+    {% if measurement_form.errors.get('form') %}<p class="error" role="alert">{{ measurement_form.errors['form'] }}</p>{% endif %}
+    {% if measurement_form.conflict_date %}
+      <p class="error" role="alert">{{ measurement_form.conflict_date | short_date(today) }} already has saved measurements. <a href="{{ measurement_form.edit_url }}">Edit this session</a> before saving.</p>
+    {% endif %}
+    {% if measurement_form.stale_date %}
+      <p class="error" role="alert">{{ measurement_form.stale_date | short_date(today) }} changed since this page loaded. <a href="{{ measurement_form.reload_url }}">Reload this session</a> to see the saved readings.</p>
+    {% endif %}
+    <form method="post" action="/measurements" class="measurement-form">
+      {% if measurement_form.home_date is not none %}
+        <input type="hidden" name="source" value="home">
+        <input type="hidden" name="home_date" value="{{ measurement_form.home_date }}">
+        <input type="hidden" name="range" value="{{ measurement_form.chart_range }}">
+      {% endif %}
+      <input type="hidden" name="loaded_date" value="{{ measurement_form.values.get('loaded_date', '') }}">
+      <input type="hidden" name="loaded_version" value="{{ measurement_form.values.get('loaded_version', '') }}">
+      <input type="hidden" name="weight_unit" value="{{ measurement_form.values.get('weight_unit', '') }}">
+      <div class="field measurement-date">
+        <label for="measurement-date">Date</label>
+        <input id="measurement-date" name="date" type="date" max="{{ today }}" value="{{ measurement_form.values.get('date', '') }}" required {% if measurement_form.errors.get('date') %}aria-invalid="true" aria-describedby="measurement-date-error"{% endif %}>
+        {% if measurement_form.errors.get('date') %}<p class="error" id="measurement-date-error">{{ measurement_form.errors['date'] }}</p>{% endif %}
+      </div>
+      <p class="help">Enter any sites you want to track. Each site accepts one to three readings; its history shows their mean.</p>
+      {% for site, label in measurement_form.sites.items() %}
+        <fieldset>
+          <legend>{{ label }} ({{ measurement_form.length_unit }})</legend>
+          <div class="reading-grid">
+            {% for slot in range(1, 4) %}
+              {% set field = site.value ~ '_' ~ slot %}
+              <div class="field">
+                <label for="{{ field }}"><span class="visually-hidden">{{ label }} </span>Reading {{ slot }}</label>
+                <input id="{{ field }}" name="{{ field }}" type="number" step="any" inputmode="decimal" min="{{ measurement_form.limits[site][0] }}" max="{{ measurement_form.limits[site][1] }}" value="{{ measurement_form.values.get(field, '') }}" {% if measurement_form.errors.get(field) %}aria-invalid="true" aria-describedby="{{ field }}-error"{% endif %}>
+                {% if measurement_form.errors.get(field) %}<p class="error" id="{{ field }}-error">{{ measurement_form.errors[field] }}</p>{% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        </fieldset>
+      {% endfor %}
+      <button type="submit">Save measurements</button>
+    </form>

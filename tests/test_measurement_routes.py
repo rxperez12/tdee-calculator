@@ -61,7 +61,10 @@ def test_empty_page_form_and_instructions(client):
     assert page.status_code == 200
     assert 'aria-current="page">Measurements' in page.text
     assert "No measurements yet" in page.text
-    assert '<details class="measurement-instructions" open>' in page.text
+    assert (
+        '<details id="how-to-measure" class="measurement-instructions" open>'
+        in page.text
+    )
     inputs = FormInputs(page.text, action="/measurements")
     assert inputs.values["date"] == "2026-10-08"
     assert inputs.values["weight_unit"] == "kg"
@@ -269,7 +272,7 @@ def test_latest_valid_estimate_retains_its_date_after_newer_partial_session(
     assert "Newer measurements on Thu 8 Oct: Needs neck and abdomen" in " ".join(
         hero.split()
     )
-    assert '<details class="measurement-instructions" >' in page
+    assert '<details id="how-to-measure" class="measurement-instructions" >' in page
     # Removing the valid session leaves the newer session's missing-input reason.
     assert (
         client.post(

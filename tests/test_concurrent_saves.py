@@ -11,6 +11,7 @@ from datetime import date, datetime
 import pytest
 from sqlalchemy.orm import Session
 from test_app import FormInputs, stored_entries
+from test_home_measurement_routes import assert_home_feedback, home_form
 from test_measurement_routes import form, readings
 
 from tdee_calculator import clock, entries, measurements
@@ -46,7 +47,9 @@ def after_check(monkeypatch, config, route_module, change: Callable[[Session], o
 
 
 def entry_form(client, day="2026-10-08", **changes):
-    values = FormInputs(client.get("/", params={"date": day}).text).values
+    values = FormInputs(
+        client.get("/", params={"date": day}).text, action="/entries"
+    ).values
     return {**values, **changes}
 
 
@@ -113,13 +116,17 @@ def post_measurements(client, values):
 
 
 @pytest.mark.parametrize("existing", [True, False])
+@pytest.mark.parametrize("source", ["home", "measurements"])
 def test_measurement_save_refused_when_another_save_lands_first(
-    client, config, monkeypatch, existing
+    client, config, monkeypatch, existing, source
 ):
     if existing:
         values = {**form(client), "neck_1": "35"}
         assert post_measurements(client, values).status_code == 303
-    values = {**form(client), "neck_1": "40"}
+    values = {
+        **(home_form(client) if source == "home" else form(client)),
+        "neck_1": "40",
+    }
     after_check(
         monkeypatch,
         config,
@@ -132,17 +139,23 @@ def test_measurement_save_refused_when_another_save_lands_first(
     response = post_measurements(client, values)
 
     assert response.status_code == 409
+    if source == "home":
+        assert_home_feedback(response)
     assert "Reload this session" in response.text
     assert readings(config) == [("neck", 1, 37)]
 
 
+@pytest.mark.parametrize("source", ["home", "measurements"])
 def test_measurement_save_refused_when_session_is_deleted_first(
-    client, config, monkeypatch
+    client, config, monkeypatch, source
 ):
     assert (
         post_measurements(client, {**form(client), "neck_1": "35"}).status_code == 303
     )
-    values = {**form(client), "neck_1": "40"}
+    values = {
+        **(home_form(client) if source == "home" else form(client)),
+        "neck_1": "40",
+    }
     after_check(
         monkeypatch,
         config,
@@ -153,14 +166,25 @@ def test_measurement_save_refused_when_session_is_deleted_first(
     response = post_measurements(client, values)
 
     assert response.status_code == 409
+    if source == "home":
+        assert_home_feedback(response)
     assert "Reload this session" in response.text
     assert readings(config) == []
 
 
+@pytest.mark.parametrize("source", ["home", "measurements"])
 def test_measurements_moved_to_a_date_another_save_just_filled(
-    client, config, monkeypatch
+    client, config, monkeypatch, source
 ):
-    values = {**form(client, "2026-10-07"), "date": "2026-10-08", "neck_1": "40"}
+    values = {
+        **(
+            home_form(client, day="2026-10-07")
+            if source == "home"
+            else form(client, "2026-10-07")
+        ),
+        "date": "2026-10-08",
+        "neck_1": "40",
+    }
     after_check(
         monkeypatch,
         config,
@@ -173,5 +197,7 @@ def test_measurements_moved_to_a_date_another_save_just_filled(
     response = post_measurements(client, values)
 
     assert response.status_code == 409
+    if source == "home":
+        assert_home_feedback(response)
     assert "Edit this session" in response.text
     assert readings(config) == [("neck", 1, 37)]

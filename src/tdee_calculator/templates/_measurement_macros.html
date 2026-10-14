@@ -1,0 +1,5 @@
+{% macro estimate(row) %}
+  {% if row.estimate is not none %}{{ '%.0f' | format(row.estimate) }}%
+  {% elif row.needs_settings %}<a href="/settings">{{ row.reason }}</a>
+  {% else %}{{ row.reason }}{% endif %}
+{% endmacro %}

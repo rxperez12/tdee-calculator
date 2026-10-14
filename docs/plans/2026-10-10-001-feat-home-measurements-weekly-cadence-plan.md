@@ -89,11 +89,12 @@ equations and persistence rather than introducing an external-service contract.
 | Edit action | **Edit latest** loads the newest actual session, including a partial session. Older sessions are reached through full history. |
 | Log action | **Log measurements** loads today, prefilled if today already has a session. New dates start blank; never copy older readings into a new date. |
 | Weekly cadence | Use newest saved session date + seven days, including partial sessions. Corrections do not reset the cadence through `updated_at`; backfills only change the prompt if they become the newest session. |
-| Form expansion | Home normally shows a collapsed native `details` form loaded with today, the same as **Log measurements**. Explicit log/edit navigation, measurement errors, and measurement save confirmation open it. The workflow works without JavaScript. |
-| Return destination | The existing measurement POST accepts a bounded page source: home or measurements. Missing/unrecognized sources use the existing measurements-page behavior. Never accept an arbitrary return URL. |
+| Form expansion | Home normally shows a collapsed native `details` form loaded with today, the same as **Log measurements**. Explicit log/edit navigation, measurement errors, and measurement save confirmation open it. A present `circumference_date` always opens the form, even when invalid or in the future; it then loads the date `requested_day` falls back or clamps to. The workflow works without JavaScript. |
+| Return destination | The existing measurement POST accepts a bounded page source: home or measurements. Missing/unrecognized sources use the existing measurements-page behavior. Never accept an arbitrary return URL. Home success redirects to `/?date=<home_date>&range=<range>&circumference_date=<saved>&circumference_saved=<saved>`: the form reopens on the saved session and the confirmation appears inside the measurement section. A measurement save never sets the daily `saved` parameter. |
+| Parameter names | New home query parameters and IDs say what was measured: `circumference_date`, `circumference_saved`, `circumference-log-heading`. A bare `measurement` prefix would be ambiguous once P2.1 B adds body-fat results from other sources, and next to weight and height. |
 | POST field names | `date` keeps its current meaning in the measurement POST: the session date. The home form adds `source=home`, `home_date` (the selected daily date), and `range` (the chart range). The standalone form sends none of them. Never reuse `date` for the daily date. |
 | Date display | Dates use the existing `short_date` filter (“Sat 3 Oct”, with the year when it differs), like the rest of the app. |
-| Daily context | Home measurement navigation and save responses retain the selected daily date and chart range. Each form submits its own values; unsaved input in the other form is not a cross-form draft persistence feature. |
+| Daily context | Home measurement navigation and save responses retain the selected daily date and chart range. Each form submits its own values; unsaved input in the other form is not a cross-form draft persistence feature. Daily navigation (the date selector and chart range links) does not carry `circumference_date` and returns the measurement section to its collapsed default; carrying the date without its unsaved readings would preserve only half the draft. |
 
 Cadence copy uses explicit dates, without an overdue/missed-log count:
 
@@ -156,13 +157,13 @@ measurement route into a route-layer helper. Extract its form and feedback into
 a template partial with explicit form context and destination-aware edit/reload
 links. Keep the parser, edit checks, and database mutation in the existing POST.
 
-Home uses a distinct `measurement_date` query parameter to load and open the form;
+Home uses a distinct `circumference_date` query parameter to load and open the form;
 the existing `date` remains the selected daily-entry date. Invalid/future requested
 measurement dates follow `requested_day`'s existing fallback/clamp behavior.
 Namespace measurement context so it cannot replace daily `form_values`, `errors`,
 `saved`, or conflict notices. Give the two forms distinct control/error IDs: both
 `_log_form.html` and the current measurement section use `id="log-heading"`, so the
-partial renames its heading (for example `measurement-log-heading`) and keeps
+partial renames its heading to `circumference-log-heading` and keeps
 `measurement-date` and a measurement-specific date error ID. Every `render_home`
 call, including daily-entry 422/409 failures, builds the measurement section.
 
@@ -191,7 +192,10 @@ failure rendering; keep the standalone contract tests passing through extraction
    estimate is missing. Today already saved means prefilled edit, not duplication.
 3. With daily date Oct 2 and measurement date Oct 8, the fields remain independent
    across measurement save, redirect, errors, and reload links; chart range stays
-   selected. Daily submission still reads only the daily form and save path.
+   selected. The success redirect sets `circumference_saved`, not `saved`. Changing
+   the chart range from that page keeps daily date Oct 2 and returns the measurement
+   form to collapsed today. Daily submission still reads only the daily form and
+   save path.
 4. Empty, invalid, or future-date POSTs return 422 on home, keep typed measurement
    values and errors in the open measurement form, and leave all rows unchanged.
 5. Changing the form date to an existing unloaded session returns 409 on home,

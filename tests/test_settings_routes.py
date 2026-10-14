@@ -147,14 +147,14 @@ def test_inches_input_limit_matches_server(client):
 
 def test_imperial_entry_edit_preserves_weight(client, config):
     switch_units(client)
-    data = FormInputs(client.get("/").text).values
+    data = FormInputs(client.get("/").text, action="/entries").values
     data.update(weight="180.1", calories="8368")
     assert save(client, data).status_code == 303
     assert stored_entries(config)[0][1:3] == (
         pytest.approx(81.691985837, abs=1e-9),
         2000,
     )
-    data = FormInputs(client.get("/").text).values
+    data = FormInputs(client.get("/").text, action="/entries").values
     original = stored_entries(config)[0][1]
     data["calories"] = "8786"
     assert save(client, data).status_code == 303
@@ -179,7 +179,7 @@ def test_stale_units_render_fresh_and_recovery_is_safe(
     response = client.post(path, data=stale, follow_redirects=False)
     assert response.status_code == 409
     assert "Your units changed since this page loaded" in response.text
-    values = FormInputs(response.text).values
+    values = FormInputs(response.text, action=path).values
     assert values["weight_unit"] == weight
     assert values["energy_unit"] == energy
     key = "weight" if path == "/entries" else "goal_weight"

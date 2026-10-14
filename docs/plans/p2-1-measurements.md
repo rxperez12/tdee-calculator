@@ -13,8 +13,8 @@ apply except for the home-page addition explicitly scoped there.
 
 | PR | Contents | Status |
 | --- | --- | --- |
-| **A. Tape measurements + Navy estimate** | Measurement sessions with repeated readings, instructions, the Navy estimate, history | Implemented; locally verified |
-| **A2. Home logging and weekly cadence** | Home summary, inline logging/editing, and a suggested weekly cadence; [follow-up plan](2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md) | Planned next, before B |
+| **A. Tape measurements + Navy estimate** | Measurement sessions with repeated readings, instructions, the Navy estimate, history | Merged into main |
+| **A2. Home logging and weekly cadence** | Home summary, inline logging/editing, and a suggested weekly cadence; [follow-up plan](2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md) | Implemented; locally verified; not yet merged |
 | **B. External body-fat results** | Separate table, form, and history for results recorded elsewhere, with their source | Outline only; detail before starting |
 | **C. Context and polish** | Waist-to-height ratio, BMI (if kept), an estimate chart, seed data | Outline only; optional |
 
@@ -266,6 +266,33 @@ TDEE_DATA_DIR=$(mktemp -d) ./run.sh
 - Dashboard or calendar markers (P2.2).
 - A warning when repeated readings disagree by more than about 1 in. Worth adding
   once the form is in use.
+
+## A2. Home logging and weekly cadence
+
+Implemented on `feat/home-measurements`, branched from main after A's merge.
+Home shows the newest session's site means and date separately from the latest
+usable Navy estimate. Its expandable form shares validation, edit/version guards,
+conditional persistence, and feedback with `/measurements`. A next-session date
+seven days after the newest saved session is guidance; corrections, backfills,
+and additional sessions remain unrestricted.
+
+### Verification record — October 14, 2026
+
+- `./check.sh`: Ruff formatting/lint, strict mypy, and pyright pass;
+  714 tests pass with 99.95% branch coverage.
+- Real-database route tests cover both units, home redirects and 422/409 recovery,
+  stale units, stale/deleted sessions, competing writes between check and save,
+  independent daily/measurement dates, unchanged daily records/TDEE results,
+  partial histories, and cadence changes after backfills, corrections, and deletion.
+- Chromium checks used a separate temporary `TDEE_DATA_DIR`: desktop (1280px) and
+  mobile (375px), light/dark layouts, keyboard disclosure and submissions,
+  complete/partial summaries with separate dates, cm/in displays, validation and
+  conflict recovery, cross-tab unit changes, and daily date/range navigation.
+  No horizontal page overflow or JavaScript errors were observed.
+- With JavaScript disabled, validation feedback, corrected measurement saves,
+  and daily logging work through native forms.
+- Local implementation is complete; A2 has not been committed, pushed, or merged.
+  B remains an outline and needs its own implementation plan.
 
 ## B. External body-fat results (outline)
 

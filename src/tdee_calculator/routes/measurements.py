@@ -6,16 +6,19 @@ from sqlalchemy.orm import Session
 
 from tdee_calculator import clock, measurements
 from tdee_calculator.body_fat import build_summary
-from tdee_calculator.calc import Site
+from tdee_calculator.dashboard import parse_range
 from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.measurement_form import (
-    READING_LIMITS,
-    SITE_LABELS,
     MeasurementFormErrors,
     parse_measurement_form,
 )
+from tdee_calculator.routes.measurement_context import (
+    build_form_context,
+    measurement_url,
+    measurement_values,
+)
+from tdee_calculator.routes.today import entry_values, render_home
 from tdee_calculator.settings import Settings
-from tdee_calculator.units import format_length, length_unit_for
 from tdee_calculator.web import (
     STALE_UNITS_NOTICE,
     FormDependency,
@@ -27,25 +30,6 @@ from tdee_calculator.web import (
 )
 
 router = APIRouter()
-
-
-def measurement_values(
-    session: Session, day: Date, settings: Settings
-) -> dict[str, str]:
-    row = measurements.get_session(session, day)
-    values = {f"{site.value}_{slot}": "" for site in Site for slot in range(1, 4)}
-    values.update(
-        date=day.isoformat(),
-        loaded_date=day.isoformat(),
-        loaded_version=row_version(row),
-        weight_unit=settings.weight_unit.value,
-    )
-    if row is not None:
-        for reading in row.readings:
-            values[f"{reading.site}_{reading.reading}"] = format_length(
-                reading.value_cm, length_unit_for(settings.weight_unit)
-            )
-    return values
 
 
 def render_measurements(
@@ -62,28 +46,24 @@ def render_measurements(
     notice: str | None = None,
 ) -> HTMLResponse:
     summary = build_summary(measurements.all_sessions(session), settings)
-    unit = length_unit_for(settings.weight_unit)
     return templates.TemplateResponse(
         request=request,
         name="measurements.html",
         context={
             "settings": settings,
             "today": clock.today(),
-            "form_values": values,
-            "errors": errors or {},
             "rows": summary.rows,
             "latest": summary.latest,
             "newer": summary.newer,
-            "sites": SITE_LABELS,
-            "length_unit": unit.value,
-            "limits": {
-                site: (format_length(lower, unit), format_length(upper, unit))
-                for site, (lower, upper) in READING_LIMITS.items()
-            },
-            "saved": saved,
-            "conflict_date": conflict_date,
-            "stale_date": stale_date,
-            "notice": notice,
+            "measurement_form": build_form_context(
+                settings,
+                values,
+                errors=errors,
+                saved=saved,
+                conflict_date=conflict_date,
+                stale_date=stale_date,
+                notice=notice,
+            ),
         },
         status_code=status_code,
     )
@@ -114,15 +94,59 @@ def save(
     settings: SettingsDependency,
     values: FormDependency,
 ) -> HTMLResponse | RedirectResponse:
+    home_date = (
+        requested_day(values.get("home_date"), clock.today())
+        if values.get("source") == "home"
+        else None
+    )
+    chart_range = parse_range(values.get("range"))
+
+    def render_failure(
+        form_values: dict[str, str],
+        *,
+        status_code: int,
+        errors: dict[str, str] | None = None,
+        conflict_date: Date | None = None,
+        stale_date: Date | None = None,
+        notice: str | None = None,
+    ) -> HTMLResponse:
+        if home_date is None:
+            return render_measurements(
+                request,
+                session,
+                settings,
+                form_values,
+                status_code=status_code,
+                errors=errors,
+                conflict_date=conflict_date,
+                stale_date=stale_date,
+                notice=notice,
+            )
+        return render_home(
+            request,
+            session,
+            entry_values(session, home_date, settings),
+            settings,
+            status_code=status_code,
+            chart_range=chart_range,
+            measurement_form=build_form_context(
+                settings,
+                form_values,
+                errors=errors,
+                conflict_date=conflict_date,
+                stale_date=stale_date,
+                notice=notice,
+                home_date=home_date,
+                chart_range=chart_range,
+            ),
+        )
+
     try:
         day = Date.fromisoformat(values.get("date", "").strip())
     except ValueError:
         day = None
     if not weight_unit_matches(values, settings):
-        return render_measurements(
-            request,
-            session,
-            settings,
+        return render_failure(
             measurement_values(session, day or clock.today(), settings),
             status_code=409,
             notice=STALE_UNITS_NOTICE,
@@ -132,9 +156,7 @@ def save(
         values, clock.today(), settings.weight_unit, current
     )
     if isinstance(result, MeasurementFormErrors):
-        return render_measurements(
-            request, session, settings, values, errors=result.errors, status_code=422
-        )
+        return render_failure(values, errors=result.errors, status_code=422)
     loaded_date = values.get("loaded_date", "")
     loaded_version = values.get("loaded_version", "")
     conflict = edit_conflict(result.date, loaded_date, loaded_version, current)
@@ -149,18 +171,17 @@ def save(
         conflict = edit_conflict(result.date, loaded_date, loaded_version, latest)
         conflict = conflict or "stale"
     if conflict is not None:
-        return render_measurements(
-            request,
-            session,
-            settings,
+        return render_failure(
             values,
             status_code=409,
             conflict_date=result.date if conflict == "conflict" else None,
             stale_date=result.date if conflict == "stale" else None,
         )
-    saved_date = result.date.isoformat()
     return RedirectResponse(
-        f"/measurements?date={saved_date}&saved={saved_date}", status_code=303
+        measurement_url(
+            result.date, home_date=home_date, chart_range=chart_range, saved=True
+        ),
+        status_code=303,
     )
 
 

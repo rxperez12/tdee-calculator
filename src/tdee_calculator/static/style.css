@@ -131,6 +131,49 @@ nav {
 }
 
 /* Measurements */
+.home-measurements {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.measurement-header,
+.measurement-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.75rem 1.5rem;
+}
+
+.measurement-header {
+  justify-content: space-between;
+}
+
+.measurement-header h2 {
+  margin: 0;
+}
+
+.circumference-values {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.circumference-values dt {
+  color: var(--text-muted);
+}
+
+.circumference-values dd {
+  margin: 0.4rem 0 0;
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.circumference-log summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
 .measurement-date {
   max-width: 12rem;
 }
@@ -165,6 +208,10 @@ nav {
 }
 
 @media (max-width: 30rem) {
+  .circumference-values {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .reading-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
