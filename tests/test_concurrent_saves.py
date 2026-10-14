@@ -117,6 +117,7 @@ def post_measurements(client, values):
 
 @pytest.mark.parametrize("existing", [True, False])
 @pytest.mark.parametrize("source", ["home", "measurements"])
+@pytest.mark.usefixtures("measurement_profile")
 def test_measurement_save_refused_when_another_save_lands_first(
     client, config, monkeypatch, existing, source
 ):
@@ -146,6 +147,7 @@ def test_measurement_save_refused_when_another_save_lands_first(
 
 
 @pytest.mark.parametrize("source", ["home", "measurements"])
+@pytest.mark.usefixtures("measurement_profile")
 def test_measurement_save_refused_when_session_is_deleted_first(
     client, config, monkeypatch, source
 ):
@@ -173,6 +175,7 @@ def test_measurement_save_refused_when_session_is_deleted_first(
 
 
 @pytest.mark.parametrize("source", ["home", "measurements"])
+@pytest.mark.usefixtures("measurement_profile")
 def test_measurements_moved_to_a_date_another_save_just_filled(
     client, config, monkeypatch, source
 ):

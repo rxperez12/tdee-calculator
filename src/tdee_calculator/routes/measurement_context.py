@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 from sqlalchemy.orm import Session
 
 from tdee_calculator import measurements
-from tdee_calculator.calc import Site
+from tdee_calculator.calc import Site, navy_measurement_sites
 from tdee_calculator.dashboard import Range
 from tdee_calculator.edits import row_version
 from tdee_calculator.measurement_form import READING_LIMITS, SITE_LABELS
@@ -25,6 +25,7 @@ def measurement_values(
         loaded_date=day.isoformat(),
         loaded_version=row_version(row),
         weight_unit=settings.weight_unit.value,
+        sex=settings.sex.value if settings.sex is not None else "",
     )
     if row is not None:
         for reading in row.readings:
@@ -89,7 +90,9 @@ def build_form_context(
     return MeasurementFormContext(
         values=values,
         errors=errors or {},
-        sites=SITE_LABELS,
+        sites={site: SITE_LABELS[site] for site in navy_measurement_sites(settings.sex)}
+        if settings.sex is not None
+        else {},
         length_unit=unit.value,
         limits={
             site: (format_length(lower, unit), format_length(upper, unit))

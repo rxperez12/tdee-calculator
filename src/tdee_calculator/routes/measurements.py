@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from tdee_calculator import clock, measurements
 from tdee_calculator.body_fat import build_summary
+from tdee_calculator.calc import navy_measurement_sites
 from tdee_calculator.dashboard import parse_range
 from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.measurement_form import (
@@ -151,9 +152,30 @@ def save(
             status_code=409,
             notice=STALE_UNITS_NOTICE,
         )
+    if settings.sex is None:
+        return render_failure(
+            values,
+            status_code=422,
+            errors={
+                "form": "Choose male or female in Settings before logging measurements."
+            },
+        )
+    if values.get("sex") != settings.sex.value:
+        return render_failure(
+            measurement_values(session, day or clock.today(), settings),
+            status_code=409,
+            notice=(
+                "Your sex setting changed since this page loaded. Nothing was saved. "
+                "Check the displayed measurements and submit again."
+            ),
+        )
     current = measurements.get_session(session, day) if day is not None else None
     result = parse_measurement_form(
-        values, clock.today(), settings.weight_unit, current
+        values,
+        clock.today(),
+        settings.weight_unit,
+        current,
+        sites=navy_measurement_sites(settings.sex),
     )
     if isinstance(result, MeasurementFormErrors):
         return render_failure(values, errors=result.errors, status_code=422)

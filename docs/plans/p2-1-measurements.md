@@ -27,15 +27,15 @@ C moves to the later wishlist and P2.1 is done.
 | Question | Decision | Why |
 | --- | --- | --- |
 | Equation | **Traditional Navy (Hodgdon–Beckett), inch form**: male `86.010·log10(abdomen − neck) − 70.041·log10(height) + 36.76`; female `163.205·log10(waist + hip − neck) − 97.684·log10(height) − 78.387` | This is exactly what the original spreadsheet (`TDEE variant with bf Dec 22.xlsx`, column R) computes. A "metric" Navy form (`495 / (1.0324 − …) − 450`) exists but gives slightly different numbers, so it is not used. `calc.py` converts cm to inches internally. |
-| Measurement sites | **Neck, abdomen at the navel, waist at the narrowest point, hips at the widest point**, each stored under its own key | The male equation uses the abdomen at the navel; the female equation uses the narrowest waist. They are different places on the body, so they get different keys rather than one ambiguous "waist". |
-| Which sites are required | **None individually; a session needs at least one reading** | Logging a waist alone is useful for tracking. The estimate appears only when the sites its equation needs are present. |
+| Measurement sites | Forms, home summary, instructions, and history columns follow sex in Settings: **male: neck and abdomen at the navel; female: neck, waist at the narrowest point, and hips at the widest point** | `calc.navy_measurement_sites` is the shared selection used by calculation and presentation. Existing readings at other sites remain stored and reappear when that selection changes. |
+| Which sites are required | **A session needs at least one reading from the displayed sites; partial sessions are allowed** | The estimate appears only when the selected equation's complete set and height are available. Edits preserve hidden readings without copying them to a new date. |
 | Repeated readings | **Up to 3 readings per site**; the session value is their mean | This is the app's own approach, not the Navy's procedure. The 2021 Navy guide takes two readings, a third only when they disagree, uses the two closest, and rounds to 0.5 in. Keeping every raw reading and averaging them is simpler to explain and loses nothing, and the equation itself is unchanged. Three fixed input slots need no JavaScript. |
 | Sessions per date | **One**, upserted like daily entries, with the same overwrite guard and version check | Matches the entry form, so there's one mental model. A second session the same day adds nothing. |
 | Length unit | **Follows the weight unit**: cm with kg, inches with lb | Same rule as height in milestone 4. No new setting. The stale-units guard compares only `weight_unit`: the existing `web.units_match` also requires `energy_unit`, which this form doesn't send, so it can't be reused unchanged. |
 | Storage | **cm floats**, readings stored as typed (after conversion) | Store canonical units, convert at the boundary. The protocol's 0.5 in rounding is not applied to stored values. |
 | Display precision | Circumferences **0.1 cm / 0.1 in**; body fat **whole percent** | Whole percent matches the spreadsheet and the Navy's own reporting, and the method's error (several percentage points) makes decimals false precision. |
 | Stored estimate vs. computed | **Computed on read** from the readings plus current sex and height; nothing derived is stored | The raw readings are the record. Correcting your height corrects every past estimate. The cost: changing sex or height in Settings changes historical estimates. That's accepted for a single adult user, and noted on the page. |
-| Missing sex or height | **Readings are saved and shown; the estimate cell says what's missing** and links to Settings | Measurements are worth keeping even before Settings is complete. |
+| Missing sex or height | **Choose sex in Settings before logging. Height is optional for saving readings.** Existing history dates remain visible without sex; the estimate explains missing settings. | Without sex there is no selected set of fields or history columns. Missing height does not block measurement logging. A stale sex selection is refreshed with 409 before saving. |
 | Out-of-range results | **Show "outside the equation's range"** when the log argument is ≤ 0 or the result is below 2% or above 60% | Prevents a log-domain error and absurd numbers from typos that pass the per-site range check. |
 | Valid ranges per reading | Neck **20–80 cm**; abdomen and waist **40–250 cm**; hips **50–250 cm** | Catches typos (e.g. 340 for 34.0) and the wrong unit, without rejecting real values. Displayed limits follow the milestone 4 "limits and rounding" rule. |
 | Where it lives | **New `/measurements` page** and nav item | Separate from the daily log, as the roadmap asks. The dashboard isn't changed in A. |
@@ -293,6 +293,20 @@ and additional sessions remain unrestricted.
   and daily logging work through native forms.
 - Local implementation is complete; A2 has not been committed, pushed, or merged.
   B remains an outline and needs its own implementation plan.
+
+### Sex-specific fields and compact home statistics — October 14, 2026
+
+- The forms, instructions, home statistics, and history columns now use the
+  measurement sites for the sex selected in Settings. Without a selection, the
+  form links to Settings and history retains dates without guessing columns.
+- Edits preserve hidden raw readings at their stored cm precision. Hidden POST
+  fields cannot overwrite them; a changed sex selection refreshes the form with
+  409. Partial sessions remain supported.
+- Home presents circumference values and the dated Navy estimate together.
+  The longer explanation is collapsed under "About this estimate."
+- `./check.sh`: 754 tests pass, 99.95% branch coverage, and zero mypy/pyright
+  errors. Temporary-data Chromium checks verified both sexes, history switching,
+  stale-setting recovery, keyboard operation, and 1280px/375px layouts.
 
 ## B. External body-fat results (outline)
 

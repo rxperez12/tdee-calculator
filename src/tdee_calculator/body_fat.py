@@ -8,7 +8,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date as Date
 
-from tdee_calculator.calc import Sex, Site, mean_reading, navy_body_fat
+from tdee_calculator.calc import (
+    Site,
+    mean_reading,
+    navy_body_fat,
+    navy_measurement_sites,
+)
 from tdee_calculator.models import MeasurementSession
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import format_length, length_unit_for
@@ -60,11 +65,7 @@ def build_row(row: MeasurementSession, settings: Settings) -> MeasurementRow:
         )
     assert settings.sex is not None
     assert settings.height_cm is not None
-    required = (
-        (Site.NECK, Site.ABDOMEN)
-        if settings.sex == Sex.MALE
-        else (Site.NECK, Site.WAIST, Site.HIP)
-    )
+    required = navy_measurement_sites(settings.sex)
     missing = [site.value for site in required if site not in means]
     if missing:
         return MeasurementRow(

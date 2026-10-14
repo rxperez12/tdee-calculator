@@ -14,6 +14,7 @@ from tdee_calculator.settings import Settings, save_settings
 from tdee_calculator.units import WeightUnit
 
 DAY = date(2026, 10, 8)
+pytestmark = pytest.mark.usefixtures("measurement_profile")
 
 
 def form(client, day="2026-10-08"):
@@ -45,7 +46,13 @@ def readings(config):
         engine.dispose()
 
 
-def settings(config, *, sex=Sex.MALE, height=180.34, weight=WeightUnit.KG):
+def settings(
+    config,
+    *,
+    sex: Sex | None = Sex.MALE,
+    height: float | None = 180.34,
+    weight: WeightUnit = WeightUnit.KG,
+):
     engine = make_engine(config)
     try:
         with Session(engine) as session:
@@ -221,12 +228,13 @@ def test_new_date_can_be_saved_from_loaded_existing_session(client, config):
 def test_settings_needed_but_raw_readings_remain_visible(
     client, config, sex, height, reason
 ):
-    settings(config, sex=sex, height=height)
     save(client, form(client), neck_1="35")
+    settings(config, sex=sex, height=height)
     page = client.get("/measurements").text
     assert reason in page
     assert '<a href="/settings">' in page
-    assert "35.0" in page
+    if sex is not None:
+        assert "35.0" in page
 
 
 @pytest.mark.parametrize(
@@ -264,14 +272,12 @@ def test_latest_valid_estimate_retains_its_date_after_newer_partial_session(
 ):
     settings(config)
     save(client, form(client, "2026-10-07"), neck_1="39.37", abdomen_1="88.9")
-    save(client, form(client), waist_1="80")
+    save(client, form(client), neck_1="35")
     page = client.get("/measurements").text
     hero = page.split('aria-labelledby="estimate-heading">')[1].split("</section>")[0]
     assert "18%" in hero
     assert 'measured <time datetime="2026-10-07">Wed 7 Oct' in hero
-    assert "Newer measurements on Thu 8 Oct: Needs neck and abdomen" in " ".join(
-        hero.split()
-    )
+    assert "Newer measurements on Thu 8 Oct: Needs abdomen" in " ".join(hero.split())
     assert '<details id="how-to-measure" class="measurement-instructions" >' in page
     # Removing the valid session leaves the newer session's missing-input reason.
     assert (
@@ -280,7 +286,7 @@ def test_latest_valid_estimate_retains_its_date_after_newer_partial_session(
         ).status_code
         == 303
     )
-    assert "Needs neck and abdomen" in client.get("/measurements").text
+    assert "Needs abdomen" in client.get("/measurements").text
 
 
 def test_history_uses_means_and_current_settings(client, config):

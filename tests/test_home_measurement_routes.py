@@ -1,6 +1,6 @@
 import re
 from datetime import date, datetime
-from html import unescape
+from html import escape, unescape
 
 import pytest
 from test_app import FormInputs, stored_entries
@@ -12,6 +12,8 @@ from tdee_calculator import clock
 from tdee_calculator.calc import Sex
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import WeightUnit
+
+pytestmark = pytest.mark.usefixtures("measurement_profile")
 
 
 def home_form(client, *, day="2026-10-08", daily_day="2026-10-02", chart_range="4w"):
@@ -197,15 +199,15 @@ def test_home_empty_default_and_explicit_date_loading(client):
 def test_partial_summary_and_latest_edit_keep_distinct_dates(client, config):
     settings(config)
     save(client, home_form(client, day="2026-10-03"), neck_1="39.37", abdomen_1="88.9")
-    save(client, home_form(client), waist_1="80")
+    save(client, home_form(client), neck_1="35")
     response = client.get("/?date=2026-10-02&range=all")
     section = measurement_section(response.text)
     assert "18%" in section
-    assert "Needs neck and abdomen" in section
+    assert "Needs abdomen" in section
     assert 'datetime="2026-10-03"' in section
     assert 'datetime="2026-10-08"' in section
     assert 'datetime="2026-10-15"' in section
-    assert "80.0 cm" in section
+    assert "35.0 cm" in section
     assert "39.4 cm" not in section
     assert (
         'href="/?date=2026-10-02&amp;range=all&amp;circumference_date=2026-10-08"'
@@ -213,9 +215,18 @@ def test_partial_summary_and_latest_edit_keep_distinct_dates(client, config):
     )
     assert 'id="chart"' not in response.text
     loaded = home_form(client)
-    assert loaded["waist_1"] == "80.0"
-    assert loaded["neck_1"] == ""
+    assert loaded["neck_1"] == "35.0"
+    assert loaded["abdomen_1"] == ""
     assert loaded["loaded_version"]
+    assert re.search(
+        r'<dd class="circumference-estimate-value">\s*18%\s*</dd>', section
+    )
+    assert '<details class="measurement-about">' in section
+    explanation = section.split('<details class="measurement-about">')[1].split(
+        "</details>"
+    )[0]
+    assert "uncertainty of several percentage points" in explanation
+    assert "does not change your calorie target" in explanation
 
 
 @pytest.mark.parametrize("status", [422, 409])
@@ -268,7 +279,7 @@ def test_home_cadence_copy(client, monkeypatch, today, copy):
     "sex,height,changes,expected",
     [
         (None, None, {"neck_1": "35"}, "Set sex and height in Settings"),
-        (Sex.MALE, 180, {"waist_1": "80"}, "Needs neck and abdomen"),
+        (Sex.MALE, 180, {"neck_1": "35"}, "Needs abdomen"),
         (
             Sex.MALE,
             180,
@@ -280,13 +291,15 @@ def test_home_cadence_copy(client, monkeypatch, today, copy):
 def test_home_all_unusable_estimates_keep_readings(
     client, config, sex, height, changes, expected
 ):
-    settings(config, sex=sex, height=height)
+    settings(config, sex=sex or Sex.MALE, height=height)
     save(client, home_form(client), **changes)
+    settings(config, sex=sex, height=height)
     summary = measurement_section(client.get("/").text)
     assert expected in unescape(summary)
-    assert " cm" in summary
+    if sex is not None:
+        assert " cm" in summary
     assert 'datetime="2026-10-08"' in summary
-    assert "Navy estimate" not in summary
+    assert 'class="circumference-estimate-value"' not in summary
     if sex is None:
         assert '<a href="/settings">' in summary
 
@@ -295,11 +308,11 @@ def test_backfills_corrections_extra_sessions_and_delete_update_cadence(
     client, config, monkeypatch
 ):
     save(client, home_form(client, day="2026-10-03"), neck_1="35")
-    save(client, home_form(client, day="2026-10-04"), waist_1="80")
+    save(client, home_form(client, day="2026-10-04"), abdomen_1="80")
     assert 'datetime="2026-10-11"' in measurement_section(client.get("/").text)
     save(client, home_form(client, day="2026-10-01"), neck_1="36")
     monkeypatch.setattr(clock, "now", lambda: datetime(2026, 10, 8, 9))
-    save(client, home_form(client, day="2026-10-04"), waist_1="81")
+    save(client, home_form(client, day="2026-10-04"), abdomen_1="81")
     summary = measurement_section(client.get("/").text)
     assert 'datetime="2026-10-11"' in summary
     assert "81.0 cm" in summary
@@ -352,7 +365,7 @@ def test_home_log_link_loads_today_and_blank_new_dates(client):
     save(client, home_form(client), neck_1="35")
     page = client.get("/?date=2026-10-02&range=all").text
     url = "/?date=2026-10-02&range=all&circumference_date=2026-10-08"
-    assert f'href="{unescape(url).replace("&", "&amp;")}">Log measurements</a>' in page
+    assert f'href="{escape(url)}" aria-label="Log measurements">Log</a>' in page
     assert (
         FormInputs(client.get(url).text, action="/measurements").values["neck_1"]
         == "35.0"

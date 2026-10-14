@@ -58,6 +58,15 @@ class Site(StrEnum):
     HIP = "hip"
 
 
+def navy_measurement_sites(sex: Sex) -> tuple[Site, ...]:
+    """Circumference sites used by the traditional Navy equation."""
+    return (
+        (Site.NECK, Site.ABDOMEN)
+        if sex == Sex.MALE
+        else (Site.NECK, Site.WAIST, Site.HIP)
+    )
+
+
 def mean_reading(values: Sequence[float]) -> float:
     if not values:
         raise ValueError("readings must not be empty")
@@ -76,11 +85,7 @@ def navy_body_fat(
     _require_finite(height_cm, "height_cm")
     if height_cm <= 0:
         raise ValueError("height_cm must be positive")
-    required = (
-        (Site.NECK, Site.ABDOMEN)
-        if sex == Sex.MALE
-        else (Site.NECK, Site.WAIST, Site.HIP)
-    )
+    required = navy_measurement_sites(sex)
     if any(site not in sites for site in required):
         return None
     for site in required:

@@ -44,6 +44,8 @@ def parse_measurement_form(
     today: Date,
     weight_unit: WeightUnit,
     current: MeasurementSession | None = None,
+    *,
+    sites: tuple[Site, ...] = tuple(Site),
 ) -> MeasurementInput | MeasurementFormErrors:
     errors: dict[str, str] = {}
     measurement_date: Date | None = None
@@ -61,7 +63,7 @@ def parse_measurement_form(
         else {}
     )
     readings: dict[Site, tuple[float, ...]] = {}
-    for site in Site:
+    for site in sites:
         values: list[float] = []
         lower, upper = READING_LIMITS[site]
         for slot in range(1, 4):
@@ -97,4 +99,17 @@ def parse_measurement_form(
     if errors:
         return MeasurementFormErrors(errors)
     assert measurement_date is not None
+    # Fields absent from the selected equation are not editable in this form.
+    # Keep their saved cm readings rather than interpreting omission as deletion.
+    if current is not None:
+        for site in Site:
+            if site in sites:
+                continue
+            preserved = tuple(
+                reading.value_cm
+                for reading in sorted(current.readings, key=lambda row: row.reading)
+                if reading.site == site.value
+            )
+            if preserved:
+                readings[site] = preserved
     return MeasurementInput(measurement_date, readings)

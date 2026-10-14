@@ -31,12 +31,20 @@
 
   <details id="how-to-measure" class="measurement-instructions" {% if not rows %}open{% endif %}>
     <summary>How to measure</summary>
-    <p>Use a non-stretch tape, snug against the body without compressing it. Measure the neck, abdomen, and waist on bare skin. Keep your shoulders relaxed and look straight ahead.</p>
+    <p>Use a non-stretch tape, snug against the body without compressing it. Keep your shoulders relaxed and look straight ahead.</p>
+    {% if settings.sex %}
+      <p>Measure the neck and {{ 'abdomen' if settings.sex.value == 'male' else 'waist' }} on bare skin.</p>
+    {% endif %}
     <dl>
+      {% if settings.sex %}
       <dt>Neck</dt><dd>Just below the larynx (Adam's apple), perpendicular to the long axis of the neck. Keep the tape as close to horizontal as anatomically possible, at the same height in front and back, avoiding the shoulder muscles.</dd>
+      {% if settings.sex.value == 'male' %}
       <dt>Abdomen (navel)</dt><dd>Across the belly button with arms at your sides, at the end of a normal, relaxed exhale. Keep the tape level.</dd>
+      {% else %}
       <dt>Waist (narrowest point)</dt><dd>At the smallest circumference, usually between the navel and the bottom of the breastbone. Keep the tape level, arms at your sides, and measure at the end of a normal exhale.</dd>
       <dt>Hips</dt><dd>Around the widest part of the buttocks, with feet together and the tape level. The Navy guide measures over its physical-training shorts; avoid shaping or compressive clothing.</dd>
+      {% endif %}
+      {% endif %}
     </dl>
     {% if settings.sex and settings.sex.value == 'male' %}
       <p>Your estimate needs neck and abdomen readings, plus height in Settings.</p>
@@ -54,7 +62,7 @@
     {% if rows %}
       <div class="table-scroll">
         <table class="measurement-history">
-          <caption class="visually-hidden">Session means in {{ length_unit }} and traditional Navy estimates, newest first</caption>
+          <caption class="visually-hidden">Measurement sessions{% if sites %}, means in {{ length_unit }}{% endif %}, and traditional Navy estimates, newest first</caption>
           <thead><tr><th scope="col">Date</th>{% for label in sites.values() %}<th scope="col" class="number">{{ label }} ({{ length_unit }})</th>{% endfor %}<th scope="col">Body fat · Navy</th><th scope="col">Actions</th></tr></thead>
           <tbody>
             {% for row in rows %}

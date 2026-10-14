@@ -1,4 +1,6 @@
-    <h2 id="circumference-log-heading">{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</h2>
+    {% if measurement_form.home_date is none %}
+      <h2 id="circumference-log-heading">{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</h2>
+    {% endif %}
     {% if measurement_form.saved %}<p class="notice" role="status">Saved measurements for {{ measurement_form.saved | short_date(today) }}.</p>{% endif %}
     {% if measurement_form.notice %}<p class="notice" role="alert">{{ measurement_form.notice }}</p>{% endif %}
     {% if measurement_form.errors.get('form') %}<p class="error" role="alert">{{ measurement_form.errors['form'] }}</p>{% endif %}
@@ -17,12 +19,17 @@
       <input type="hidden" name="loaded_date" value="{{ measurement_form.values.get('loaded_date', '') }}">
       <input type="hidden" name="loaded_version" value="{{ measurement_form.values.get('loaded_version', '') }}">
       <input type="hidden" name="weight_unit" value="{{ measurement_form.values.get('weight_unit', '') }}">
+      <input type="hidden" name="sex" value="{{ measurement_form.values.get('sex', '') }}">
       <div class="field measurement-date">
         <label for="measurement-date">Date</label>
         <input id="measurement-date" name="date" type="date" max="{{ today }}" value="{{ measurement_form.values.get('date', '') }}" required {% if measurement_form.errors.get('date') %}aria-invalid="true" aria-describedby="measurement-date-error"{% endif %}>
         {% if measurement_form.errors.get('date') %}<p class="error" id="measurement-date-error">{{ measurement_form.errors['date'] }}</p>{% endif %}
       </div>
-      <p class="help">Enter any sites you want to track. Each site accepts one to three readings; its history shows their mean.</p>
+      {% if settings.sex %}
+        <p class="help">Take up to three readings per site. You can save a partial session.</p>
+      {% else %}
+        <p class="help"><a href="/settings">Choose male or female in Settings</a> to see the measurements for your Navy estimate.</p>
+      {% endif %}
       {% for site, label in measurement_form.sites.items() %}
         <fieldset>
           <legend>{{ label }} ({{ measurement_form.length_unit }})</legend>
@@ -38,5 +45,5 @@
           </div>
         </fieldset>
       {% endfor %}
-      <button type="submit">Save measurements</button>
+      <button type="submit" {% if not settings.sex %}disabled{% endif %}>Save measurements</button>
     </form>

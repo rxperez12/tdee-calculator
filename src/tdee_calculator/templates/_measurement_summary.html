@@ -5,9 +5,9 @@
   <div class="measurement-header">
     <h2 id="circumference-heading">Measurements</h2>
     <div class="measurement-actions">
-      <a href="{{ circumference_log_url }}">Log measurements</a>
+      <a href="{{ circumference_log_url }}" aria-label="Log measurements">Log</a>
       {% if newest %}<a href="{{ circumference_edit_url }}">Edit latest</a>{% endif %}
-      <a href="/measurements">Full history</a>
+      <a href="/measurements" aria-label="Measurement history">History</a>
     </div>
   </div>
   {% if newest %}
@@ -16,6 +16,7 @@
       {% if measurement_dashboard.cadence == 'today' %}suggested measurement today.
       {% else %}next suggested <time datetime="{{ measurement_dashboard.next_suggested }}">{{ measurement_dashboard.next_suggested | short_date(today) }}</time>.{% if measurement_dashboard.cadence == 'past' %} Log when ready.{% endif %}{% endif %}
     </p>
+    {% if measurement_form.sites %}
     <dl class="circumference-values">
       {% for site, label in measurement_form.sites.items() %}
         <div>
@@ -23,19 +24,29 @@
           <dd>{% if site in newest.means %}{{ newest.means[site] }} {{ measurement_form.length_unit }}{% else %}—{% endif %}</dd>
         </div>
       {% endfor %}
+      <div>
+        <dt>Body fat · Navy</dt>
+        {% if latest %}
+          <dd class="circumference-estimate-value">{{ estimate(latest) }}</dd>
+          <dd class="measurement-stat-date">Measured <time datetime="{{ latest.date }}">{{ latest.date | short_date(today) }}</time></dd>
+        {% else %}
+          <dd>—</dd>
+        {% endif %}
+      </div>
     </dl>
-    {% if latest %}
-      <p><strong>{{ estimate(latest) }}</strong> · Navy estimate · measured <time datetime="{{ latest.date }}">{{ latest.date | short_date(today) }}</time></p>
     {% endif %}
     {% if newest.estimate is none %}
-      <p class="help">Measurements on {{ newest.date | short_date(today) }}: {{ estimate(newest) }}</p>
+      <p class="help">Latest session: {{ estimate(newest) }}</p>
     {% endif %}
-    <p class="help">A tape-based estimate, with uncertainty of several percentage points. It does not change your calorie target. Estimates use your current sex and height from Settings.</p>
+    <details class="measurement-about">
+      <summary>About this estimate</summary>
+      <p class="help">A tape-based estimate, with uncertainty of several percentage points. It does not change your calorie target. Estimates use your current sex and height from Settings.</p>
+    </details>
   {% else %}
     <p>No measurements yet. Log your first session.</p>
   {% endif %}
   <details class="circumference-log" {% if circumference_open %}open{% endif %}>
-    <summary>Log or edit measurements</summary>
+    <summary>{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</summary>
     {% include "_measurement_form.html" %}
     <p class="help"><a href="/measurements#how-to-measure">How to measure</a></p>
   </details>
