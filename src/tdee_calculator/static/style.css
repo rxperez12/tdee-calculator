@@ -47,15 +47,27 @@
   }
 }
 
+html {
+  /* Reserve the scrollbar's space so short and long pages center alike. */
+  scrollbar-gutter: stable;
+}
+
 body {
   margin: 0;
   background: var(--surface);
   color: var(--text);
 }
 
+/* The header keeps the widest page width so the nav never moves between
+   narrow and wide pages. */
+.site-header {
+  width: min(60rem, calc(100% - 2rem));
+  margin: 4rem auto 0;
+}
+
 main {
   width: min(40rem, calc(100% - 2rem));
-  margin: 4rem auto;
+  margin: 0 auto 4rem;
 }
 
 main.wide {
@@ -494,8 +506,12 @@ th, td {
 }
 
 @media (max-width: 30rem) {
+  .site-header {
+    margin-top: 2rem;
+  }
+
   main {
-    margin: 2rem auto;
+    margin-bottom: 2rem;
   }
 
   .entry-form > button {
