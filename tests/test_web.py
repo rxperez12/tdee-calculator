@@ -1,9 +1,10 @@
+import re
 from datetime import date
 
 import pytest
 
 from tdee_calculator.units import WeightUnit
-from tdee_calculator.web import change_phrase, requested_day, short_date
+from tdee_calculator.web import change_phrase, requested_day, short_date, static_url
 
 
 def test_short_date_adds_year_only_outside_current_year():
@@ -45,3 +46,21 @@ def test_change_phrase_in_pounds():
 )
 def test_requested_day(text, expected):
     assert requested_day(text, date(2026, 10, 8)) == expected
+
+
+def test_static_url_changes_only_when_the_file_does(tmp_path):
+    asset = tmp_path / "style.css"
+    asset.write_text("body { color: red; }")
+    first = static_url("style.css", tmp_path)
+    assert first.startswith("/static/style.css?v=")
+    assert static_url("style.css", tmp_path) == first
+    asset.write_text("body { color: blue; }")
+    assert static_url("style.css", tmp_path) != first
+
+
+def test_pages_link_versioned_assets_that_are_served(client):
+    page = client.get("/").text
+    href = re.search(r'<link rel="stylesheet" href="([^"]+)">', page)
+    assert href is not None
+    assert href.group(1).startswith("/static/style.css?v=")
+    assert client.get(href.group(1)).status_code == 200

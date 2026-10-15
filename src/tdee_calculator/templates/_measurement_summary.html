@@ -45,9 +45,14 @@
   {% else %}
     <p>No measurements yet. Log your first session.</p>
   {% endif %}
-  <details class="circumference-log" {% if circumference_open %}open{% endif %}>
-    <summary>{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</summary>
+  {% if circumference_open %}
+  <div class="circumference-log" role="region" aria-labelledby="circumference-log-heading">
+    <div class="measurement-header">
+      <h3 id="circumference-log-heading">{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</h3>
+      <a href="/?date={{ measurement_form.home_date }}&amp;range={{ measurement_form.chart_range }}" aria-label="Close measurement form">Close</a>
+    </div>
     {% include "_measurement_form.html" %}
     <p class="help"><a href="/measurements#how-to-measure">How to measure</a></p>
-  </details>
+  </div>
+  {% endif %}
 </section>

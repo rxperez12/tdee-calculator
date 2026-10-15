@@ -32,7 +32,7 @@ def measurement_section(html):
 
 def assert_home_feedback(response, *, daily_day="2026-10-02", chart_range="4w"):
     assert "<h1>Today</h1>" in response.text
-    assert '<details class="circumference-log" open>' in response.text
+    assert 'class="circumference-log" role="region"' in response.text
     daily = FormInputs(response.text, action="/entries").values
     assert daily["entry_date"] == daily_day
     assert daily["range"] == chart_range
@@ -184,9 +184,9 @@ def test_home_context_is_normalized_and_cross_origin_save_refused(client, config
 def test_home_empty_default_and_explicit_date_loading(client):
     page = client.get("/").text
     assert "No measurements yet. Log your first session." in page
-    assert '<details class="circumference-log" >' in page
+    assert 'action="/measurements"' not in page
     assert "autofocus" in page
-    assert FormInputs(page, action="/measurements").values["date"] == "2026-10-08"
+    assert "Edit latest" not in page
     for day in ("", "bad", "2026-10-09"):
         response = client.get("/", params={"circumference_date": day})
         assert_home_feedback(response, daily_day="2026-10-08", chart_range="3m")
@@ -242,12 +242,12 @@ def test_daily_failures_keep_measurements_collapsed_and_ids_unique(client, statu
         values["weight"] = "bad"
     response = client.post("/entries", data=values)
     assert response.status_code == status
-    assert '<details class="circumference-log" >' in response.text
+    assert 'action="/measurements"' not in response.text
     assert "35.0 cm" in measurement_section(response.text)
     ids = re.findall(r'\bid="([^"]+)"', response.text)
     assert len(ids) == len(set(ids))
     forms = re.findall(r"<form\b.*?</form>", response.text, re.DOTALL)
-    assert len(forms) == 3
+    assert len(forms) == 2
     assert all(form.count("<form") == 1 for form in forms)
     assert "autofocus" in response.text
 
@@ -350,15 +350,13 @@ def test_daily_navigation_resets_measurement_form_only(client, config):
     ).text
     assert 'href="/?range=all&amp;date=2026-10-02#chart"' in page
     next_page = client.get("/?range=all&date=2026-10-02#chart").text
-    assert '<details class="circumference-log" >' in next_page
+    assert 'action="/measurements"' not in next_page
     assert FormInputs(next_page, action="/entries").values["entry_date"] == "2026-10-02"
-    assert FormInputs(next_page, action="/measurements").values["date"] == "2026-10-08"
     selector = FormInputs(page, action="/").values
     assert selector == {"date": "2026-10-02", "range": "4w"}
     next_page = client.get("/", params={**selector, "date": "2026-10-01"}).text
-    assert '<details class="circumference-log" >' in next_page
+    assert 'action="/measurements"' not in next_page
     assert FormInputs(next_page, action="/entries").values["entry_date"] == "2026-10-01"
-    assert FormInputs(next_page, action="/measurements").values["date"] == "2026-10-08"
 
 
 def test_home_log_link_loads_today_and_blank_new_dates(client):
@@ -371,6 +369,41 @@ def test_home_log_link_loads_today_and_blank_new_dates(client):
         == "35.0"
     )
     blank = home_form(client, day="2026-10-07")
+    assert blank["neck_1"] == ""
+    assert blank["loaded_version"] == ""
+
+
+def test_home_actions_use_one_form_and_close_preserves_daily_context(client, config):
+    save(client, home_form(client, day="2026-10-07"), neck_1="35")
+    page = client.get("/?date=2026-10-02&range=all").text
+    assert 'action="/measurements"' not in page
+    assert '<details class="circumference-log"' not in page
+    edit_url = re.search(r'href="([^"]+)">Edit latest</a>', page)
+    assert edit_url is not None
+    editing = client.get(unescape(edit_url[1]))
+    assert '<h3 id="circumference-log-heading">Edit measurements</h3>' in editing.text
+    values = FormInputs(editing.text, action="/measurements").values
+    assert values["date"] == "2026-10-07"
+    assert values["neck_1"] == "35.0"
+    assert values["loaded_version"]
+    assert save(client, values, neck_1="36").status_code == 303
+    assert readings(config) == [("neck", 1, 36)]
+    close_url = re.search(
+        r'href="([^"]+)" aria-label="Close measurement form">Close</a>', editing.text
+    )
+    assert close_url is not None
+    closed = client.get(unescape(close_url[1])).text
+    assert 'action="/measurements"' not in closed
+    assert FormInputs(closed, action="/entries").values["entry_date"] == "2026-10-02"
+    assert FormInputs(closed, action="/entries").values["range"] == "all"
+    assert "Saved measurements" not in closed
+    log_url = re.search(r'href="([^"]+)" aria-label="Log measurements">Log</a>', closed)
+    assert log_url is not None
+    logging = client.get(unescape(log_url[1])).text
+    assert '<h3 id="circumference-log-heading">Log measurements</h3>' in logging
+    assert logging.count('action="/measurements"') == 1
+    blank = FormInputs(logging, action="/measurements").values
+    assert blank["date"] == "2026-10-08"
     assert blank["neck_1"] == ""
     assert blank["loaded_version"] == ""
 

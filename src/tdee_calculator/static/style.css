@@ -133,8 +133,8 @@ nav {
 /* Measurements */
 .home-measurements {
   margin-top: 2rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
+  padding: 1rem;
+  border: 1px solid var(--border);
 }
 
 .measurement-header,
@@ -149,7 +149,8 @@ nav {
   justify-content: space-between;
 }
 
-.measurement-header h2 {
+.measurement-header h2,
+.measurement-header h3 {
   margin: 0;
 }
 
@@ -176,19 +177,22 @@ nav {
   color: var(--text-muted);
 }
 
-.measurement-about {
+.measurement-about,
+.tile-about {
   margin: 0.75rem 0;
   font-size: 0.9rem;
   color: var(--text-muted);
 }
 
-.measurement-about summary {
+.measurement-about summary,
+.tile-about summary {
   cursor: pointer;
 }
 
-.circumference-log summary {
-  cursor: pointer;
-  font-weight: 600;
+.circumference-log {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
 }
 
 .measurement-date {
@@ -385,6 +389,10 @@ th, td {
   padding: 1rem 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
+}
+
+.tile-about {
+  margin-top: 1.25rem;
 }
 
 .tile-value {

@@ -1,5 +1,6 @@
 """Shared web pieces: templates, filters, and request dependencies."""
 
+import hashlib
 from collections.abc import Iterator
 from datetime import date as Date
 from functools import partial
@@ -22,6 +23,13 @@ from tdee_calculator.units import (
 )
 
 PACKAGE_DIR = Path(__file__).parent
+STATIC_DIR = PACKAGE_DIR / "static"
+
+
+def static_url(path: str, static_dir: Path = STATIC_DIR) -> str:
+    """A /static URL versioned by content, so browsers refetch edited files."""
+    digest = hashlib.sha256((static_dir / path).read_bytes()).hexdigest()[:12]
+    return f"/static/{path}?v={digest}"
 
 
 def short_date(day: Date, today: Date) -> str:
@@ -68,6 +76,7 @@ templates.env.filters.update(
     change=change_phrase,
 )
 templates.env.tests["state"] = is_state
+templates.env.globals["static_url"] = static_url
 
 STALE_UNITS_NOTICE = (
     "Your units changed since this page loaded. Nothing was saved. "

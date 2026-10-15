@@ -320,6 +320,26 @@ def test_one_day_of_data_is_marked_early(client, config):
     assert "One weigh-in so far: 70.0 kg on Thu 8 Oct." in page
 
 
+def test_estimate_explanation_uses_the_configured_window(client, config):
+    body = Settings(
+        sex=Sex.FEMALE,
+        height_cm=165.0,
+        birth_date=date(1990, 10, 8),
+        activity=ActivityLevel.MODERATE,
+        tdee_window_days=40,
+    )
+    seed(config, [DayLog(TODAY, 70.0, None)], body)
+    tdee = section(client.get("/").text, "tdee-heading")
+    # A 40-day window needs a 30-day span (3/4 of it) and is fully logs at 40.
+    assert "10 weigh-ins over 30 days" in tdee
+    assert "fully by day 40" in tdee
+
+
+def test_estimate_explanation_waits_for_an_estimate(client, config):
+    seed(config, [DayLog(TODAY, 70.0, None)])
+    assert "tile-about" not in client.get("/").text
+
+
 def test_settled_estimate_and_trend_are_not_marked_early(client, config):
     seed(config, linear_logs(), Settings(rate_kg_per_week=-0.5))
     page = client.get("/").text

@@ -37,6 +37,12 @@
     {% if dashboard.formula_tdee is not none and estimate is not none and estimate.method != 'formula' %}
       <p class="tile-note muted">Formula: {{ dashboard.formula_tdee | energy_display(energy) }} {{ energy.value }}</p>
     {% endif %}
+    {% if estimate is not none %}
+      <details class="tile-about">
+        <summary>About this estimate</summary>
+        <p class="help">Formula-based until {{ dashboard.weigh_ins_needed }} weigh-ins over {{ dashboard.span_needed }} days. Your logs then take over, fully by day {{ dashboard.full_logs_days }}.</p>
+      </details>
+    {% endif %}
   </section>
 
   <section class="tile" aria-labelledby="trend-heading">

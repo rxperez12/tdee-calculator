@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 from html.parser import HTMLParser
 
@@ -67,7 +68,7 @@ def test_date_selector_loads_day_separately_from_save(client, config) -> None:
     assert "required" in selector.inputs["date"]
     assert "Load day</button>" not in page
     assert 'class="logging-day"' not in page
-    assert '<script src="/static/date-selector.js" defer></script>' in page
+    assert re.search(r'<script src="/static/date-selector\.js\?v=\w+" defer>', page)
     selector.values["date"] = "2026-10-07"
     loaded = client.get("/", params=selector.values)
     entry = FormInputs(loaded.text, action="/entries")
@@ -79,7 +80,6 @@ def test_date_selector_loads_day_separately_from_save(client, config) -> None:
     assert [(form["method"], form["action"]) for form in entry.forms] == [
         ("get", "/"),
         ("post", "/entries"),
-        ("post", "/measurements"),
     ]
     entry.values["calories"] = "2100"
     response = save(client, entry.values)
