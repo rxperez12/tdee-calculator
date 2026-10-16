@@ -15,12 +15,18 @@ apply except for the home-page addition explicitly scoped there.
 | --- | --- | --- |
 | **A. Tape measurements + Navy estimate** | Measurement sessions with repeated readings, instructions, the Navy estimate, history | Merged into main |
 | **A2. Home logging and weekly cadence** | Home summary, inline logging/editing, and a suggested weekly cadence; [follow-up plan](2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md) | Merged into main |
-| **B. External body-fat results** | Separate table, form, and history for results recorded elsewhere, with their source | Outline only; detail before starting |
-| **C. Context and polish** | Waist-to-height ratio, BMI (if kept), an estimate chart, seed data | Outline only; optional |
+| **B. External body-fat results** | Separate table, form, and history for results recorded elsewhere, with their source | Pending; outline only, detail before starting |
+| **C. Context and polish** | Waist-to-height ratio, BMI (if kept), an estimate chart, seed data | Pending; outline only, optional |
 
-A2 depends on A. B's external-results storage does not depend on A, but the current
-delivery order puts A2 before B. C is optional: if A, A2, and B cover what's needed,
-C moves to the later wishlist and P2.1 is done.
+A2 depends on A. A and A2 are merged.
+As of October 16, 2026, B and C remain pending while the existing tape workflow
+meets current needs. The next planned feature is
+[P2.2: calendar and logging completeness](2026-10-16-1237-feat-calendar-logging-completeness-plan.md),
+which can use the existing sessions without B or C.
+P2.2 plans to move the home measurement form into a calendar-connected selected-day
+editor while retaining the separate measurement page and independent saves.
+B's external-results storage does not depend on A. C is optional: if A, A2, and B
+cover what's needed, C moves to the later wishlist and P2.1 is done.
 
 ## Decisions
 

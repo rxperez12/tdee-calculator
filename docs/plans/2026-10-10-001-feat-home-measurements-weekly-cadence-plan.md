@@ -14,6 +14,12 @@ latest usable Navy estimate, and an expandable form for logging or editing a
 measurement session. Show a suggested weekly cadence while continuing to allow
 corrections, backdated entries, and additional sessions.
 
+The [P2.2 calendar plan](2026-10-16-1237-feat-calendar-logging-completeness-plan.md)
+now proposes a homepage calendar with a shared selected logging date and the
+existing forms in one workspace. When implemented, it replaces this plan's home
+form placement and independently selected home-form dates. The persistence,
+estimate-date, optional-cadence, and standalone measurement-page contracts remain.
+
 This is a follow-up to P2.1 A, before external body-fat results (P2.1 B). It can
 ship as one increment after A; planning this increment does not authorize its
 implementation or publication.

@@ -68,13 +68,16 @@ and experiments are central features. Hosted accounts and a multi-user service a
 outside this roadmap; future integrations use each installation's own permissions
 or credentials where supported.
 
-**Next feature: body measurements and estimated body fat (P2.1).** Plan:
-[p2-1-measurements](plans/p2-1-measurements.md), delivered as four increments (A: tape
-measurements + Navy estimate, A2: home logging and weekly cadence, B: external
-results, C: context and polish). A2 has its own
-[follow-up plan](plans/2026-10-10-001-feat-home-measurements-weekly-cadence-plan.md).
-The remaining v1
-CSV export stays open and can ship independently; it does not block measurements.
+**Next feature: calendar and logging completeness (P2.2).** The
+[calendar plan](plans/2026-10-16-1237-feat-calendar-logging-completeness-plan.md)
+covers a homepage calendar connected to one selected-day logging workspace,
+selectable daily values, missing-log discovery, and separate weight and calorie
+streaks. Today is ready for entry by default; the editor sits beside the calendar
+on desktop and below it on mobile.
+P2.1 A (tape measurements + Navy estimates) and A2 (home logging and weekly cadence)
+are merged. External body-fat results (B) and optional context/polish (C) remain
+pending while the existing tape workflow meets current needs; see
+[p2-1-measurements](plans/p2-1-measurements.md).
 The order below is proposed sequencing for the wishlist, not implementation approval
 for every item. Dependencies refer to Phase 2 milestones unless stated otherwise.
 
@@ -83,7 +86,7 @@ for every item. Dependencies refer to Phase 2 milestones unless stated otherwise
 | ID | Milestone | Done when | Depends on |
 | --- | --- | --- | --- |
 | P2.1 | **Body measurements and body-fat estimates** | Dated sessions support circumference entry/edit/delete, measurement instructions, one documented tape-based estimate, raw-measurement and estimate history, and manually recorded external body-fat results with their source. | Existing entry/settings foundations |
-| P2.2 | **Calendar and logging completeness** | Month view distinguishes weight only, calories only, both, and missing entries; a day opens its records for editing. Measurement sessions appear separately, and incomplete days are easy to find. | P2.1 for measurement markers |
+| P2.2 | **Calendar and logging completeness** | The homepage dashboard contains a month calendar and one selected-day editor, ready for today on arrival. Selectable values, separate session markers, incomplete-day discovery, and independent weight/calorie streaks support reviewing and correcting records without losing the calendar context. | P2.1 A/A2; B/C do not block |
 | P2.3 | **Personal statistics and lifetime history** | All-time, monthly, rolling, and custom-range views show logging coverage, milestones, weight/measurement changes, intake summaries, and period comparisons with their sample counts. | P2.1 |
 | P2.4 | **Phases, notes, and goal history** | Named cut/maintenance/gain or custom phases preserve dates and goals; notes and optional consistently defined daily ratings provide context for charts and comparisons. | P2.2–P2.3 |
 | P2.5 | **Activity import and provenance** | A verified Garmin export format can be previewed and imported, with workout type/time/duration and available daily activity measures; repeated imports do not duplicate records, and sources and missing fields remain visible. | P2.3 |
@@ -95,9 +98,10 @@ for every item. Dependencies refer to Phase 2 milestones unless stated otherwise
 
 P2.1 is in progress: A (tape measurements and Navy estimates) is merged into main.
 A2 (home summary, inline logging/editing, and a suggested weekly cadence) is
-merged into main. B (external results) is next and still needs its detailed plan.
-C is optional.
-The other Phase 2 milestones are unstarted. P2.8–P2.10 may move earlier when their
+merged into main. B (external results) is pending and still needs its detailed plan;
+C remains optional and pending. They do not block P2.2.
+P2.2 is planned, with implementation unstarted. The other Phase 2 milestones are
+unstarted. P2.8–P2.10 may move earlier when their
 prerequisites and usefulness justify it. Detailed acceptance criteria belong in
 each milestone's implementation plan.
 
