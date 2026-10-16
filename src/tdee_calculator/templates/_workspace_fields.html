@@ -1,0 +1,7 @@
+{% macro workspace_fields(workspace, include_month=true, include_stats=true) %}
+  {% if include_month %}<input type="hidden" name="month" value="{{ workspace.month.isoformat()[:7] }}">{% endif %}
+  <input type="hidden" name="range" value="{{ workspace.chart_range }}">
+  <input type="hidden" name="selection" value="1">
+  {% if include_stats %}{% for stat in workspace.stats %}<input type="hidden" name="stat" value="{{ stat }}">{% endfor %}{% endif %}
+  {% if workspace.measurements_open %}<input type="hidden" name="measurements" value="open">{% endif %}
+{% endmacro %}

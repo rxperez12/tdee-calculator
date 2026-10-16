@@ -1,20 +1,18 @@
 from datetime import date as Date
-from typing import Annotated
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
-from tdee_calculator import clock, entries, measurements
+from tdee_calculator import entries, measurements
+from tdee_calculator.body_fat import build_row
 from tdee_calculator.dashboard import (
     RANGE_LABELS,
     RANGES,
-    Range,
     build_chart,
     build_dashboard,
     build_table,
     chart_payload,
-    parse_range,
 )
 from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.entry_form import (
@@ -23,11 +21,12 @@ from tdee_calculator.entry_form import (
     EntryFormErrors,
     parse_entry_form,
 )
+from tdee_calculator.logging_calendar import build_calendar
 from tdee_calculator.measurement_dashboard import build_measurement_dashboard
+from tdee_calculator.routes.calendar_context import Workspace, WorkspaceDependency
 from tdee_calculator.routes.measurement_context import (
     MeasurementFormContext,
     build_form_context,
-    measurement_url,
     measurement_values,
 )
 from tdee_calculator.settings import Settings
@@ -42,7 +41,6 @@ from tdee_calculator.web import (
     FormDependency,
     SessionDependency,
     SettingsDependency,
-    requested_day,
     templates,
     units_match,
 )
@@ -89,37 +87,39 @@ def render_home(
     conflict_date: Date | None = None,
     stale_date: Date | None = None,
     notice: str | None = None,
-    chart_range: Range = "3m",
     measurement_form: MeasurementFormContext | None = None,
-    circumference_date: str | None = None,
     circumference_saved: Date | None = None,
+    *,
+    workspace: Workspace,
 ) -> HTMLResponse:
-    today = clock.today()
+    today = workspace.today
     try:
         form_date = Date.fromisoformat(form_values["entry_date"])
     except ValueError:
         form_date = None
     logs = entries.all_day_logs(session)
+    sessions = measurements.all_sessions(session)
+    chart_range = workspace.chart_range
     dashboard = build_dashboard(logs, settings, today)
     chart = build_chart(dashboard, settings, chart_range)
-    circumference_open = (
-        measurement_form is not None
-        or circumference_date is not None
-        or circumference_saved is not None
-    )
-    home_date = requested_day(form_values["entry_date"], today)
+    circumference_open = workspace.measurements_open or measurement_form is not None
+    home_date = workspace.day
     if measurement_form is None:
         measurement_form = build_form_context(
             settings,
-            measurement_values(
-                session, requested_day(circumference_date, today), settings
-            ),
+            measurement_values(session, home_date, settings),
             saved=circumference_saved,
-            home_date=home_date,
-            chart_range=chart_range,
+            workspace=workspace,
         )
-    measurement_dashboard = build_measurement_dashboard(
-        measurements.all_sessions(session), settings, today
+    measurement_dashboard = build_measurement_dashboard(sessions, settings, today)
+    calendar = build_calendar(
+        logs,
+        [build_row(row, settings) for row in sessions],
+        settings,
+        today,
+        workspace.month,
+        workspace.day,
+        workspace.stats,
     )
     return templates.TemplateResponse(
         request=request,
@@ -135,10 +135,6 @@ def render_home(
             "chart_data": chart_payload(chart, settings.weight_unit),
             "ranges": RANGES,
             "range_labels": RANGE_LABELS,
-            # Range links keep an edit in progress on another day.
-            "link_date": form_date.isoformat()
-            if form_date is not None and form_date != today
-            else None,
             "saved": saved,
             "conflict_date": conflict_date,
             "stale_date": stale_date,
@@ -151,13 +147,11 @@ def render_home(
             "measurement_dashboard": measurement_dashboard,
             "measurement_form": measurement_form,
             "circumference_open": circumference_open,
-            "circumference_log_url": measurement_url(
-                today, home_date=home_date, chart_range=chart_range
-            ),
-            "circumference_edit_url": measurement_url(
-                measurement_dashboard.newest.date,
-                home_date=home_date,
-                chart_range=chart_range,
+            "workspace": workspace,
+            "calendar": calendar,
+            "circumference_log_url": workspace.url(day=today, measurements_open=True),
+            "circumference_edit_url": workspace.url(
+                day=measurement_dashboard.newest.date, measurements_open=True
             )
             if measurement_dashboard.newest is not None
             else None,
@@ -171,22 +165,19 @@ def home(
     request: Request,
     session: SessionDependency,
     settings: SettingsDependency,
-    date: str | None = None,
+    workspace: WorkspaceDependency,
     saved: Date | None = None,
-    chart_range: Annotated[str | None, Query(alias="range")] = None,
-    circumference_date: str | None = None,
     circumference_saved: Date | None = None,
 ) -> HTMLResponse:
-    values = entry_values(session, requested_day(date, clock.today()), settings)
+    values = entry_values(session, workspace.day, settings)
     return render_home(
         request,
         session,
         values,
         settings,
         saved=saved,
-        chart_range=parse_range(chart_range),
-        circumference_date=circumference_date,
         circumference_saved=circumference_saved,
+        workspace=workspace,
     )
 
 
@@ -196,15 +187,15 @@ def save_entry(
     session: SessionDependency,
     settings: SettingsDependency,
     form: FormDependency,
+    workspace: WorkspaceDependency,
 ) -> HTMLResponse | RedirectResponse:
-    selected_range = parse_range(form.get("range"))
     values = {key: form.get(key, "") for key in ENTRY_FIELDS}
     try:
         parsed_date = Date.fromisoformat(values["entry_date"].strip())
     except ValueError:
         parsed_date = None
     if not units_match(values, settings):
-        fresh = entry_values(session, parsed_date or clock.today(), settings)
+        fresh = entry_values(session, workspace.day, settings)
         return render_home(
             request,
             session,
@@ -212,7 +203,7 @@ def save_entry(
             settings,
             status_code=409,
             notice=STALE_UNITS_NOTICE,
-            chart_range=selected_range,
+            workspace=workspace,
         )
     current = (
         entries.get_entry(session, parsed_date) if parsed_date is not None else None
@@ -221,7 +212,7 @@ def save_entry(
         values["entry_date"],
         values["weight"],
         values["calories"],
-        clock.today(),
+        workspace.today,
         settings.weight_unit,
         settings.energy_unit,
         current,
@@ -234,7 +225,7 @@ def save_entry(
             settings,
             result.errors,
             status_code=422,
-            chart_range=selected_range,
+            workspace=workspace,
         )
     # The form replaces both fields, so saving it is only safe if the row is
     # still what the form showed, not something another tab saved since.
@@ -260,11 +251,10 @@ def save_entry(
             status_code=409,
             conflict_date=result.date if conflict == "conflict" else None,
             stale_date=result.date if conflict == "stale" else None,
-            chart_range=selected_range,
+            workspace=workspace,
         )
-    saved_date = result.date.isoformat()
     return RedirectResponse(
-        f"/?date={saved_date}&range={selected_range}&saved={saved_date}",
+        workspace.for_day(result.date).url(saved=True),
         status_code=303,
     )
 

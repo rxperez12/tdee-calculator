@@ -12,20 +12,13 @@
 
 {% block content %}
   <h1>Today</h1>
-  {% if saved %}
-    <p class="notice" role="status">Saved {{ saved | short_date(today) }}</p>
-  {% endif %}
-
-  {% if notice %}<p class="notice" role="alert">{{ notice }}</p>{% endif %}
-  <div class="today-top">
+  <div class="dashboard-overview">
     {% include "_hero.html" %}
-    <section class="log" aria-labelledby="log-heading">
-      {% include "_log_form.html" %}
-    </section>
+    {% if dashboard.has_entries %}{% include "_stats.html" %}{% endif %}
   </div>
   {% include "_measurement_summary.html" %}
+  {% include "_calendar.html" %}
   {% if dashboard.has_entries %}
-    {% include "_stats.html" %}
     {% include "_chart.html" %}
   {% endif %}
 {% endblock %}

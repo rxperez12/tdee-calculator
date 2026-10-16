@@ -1,4 +1,5 @@
-    {% if measurement_form.home_date is none %}
+    {% from "_workspace_fields.html" import workspace_fields %}
+    {% if measurement_form.workspace is none %}
       <h2 id="circumference-log-heading">{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</h2>
     {% endif %}
     {% if measurement_form.saved %}<p class="notice" role="status">Saved measurements for {{ measurement_form.saved | short_date(today) }}.</p>{% endif %}
@@ -11,20 +12,25 @@
       <p class="error" role="alert">{{ measurement_form.stale_date | short_date(today) }} changed since this page loaded. <a href="{{ measurement_form.reload_url }}">Reload this session</a> to see the saved readings.</p>
     {% endif %}
     <form method="post" action="/measurements" class="measurement-form">
-      {% if measurement_form.home_date is not none %}
+      {% if measurement_form.workspace is not none %}
         <input type="hidden" name="source" value="home">
-        <input type="hidden" name="home_date" value="{{ measurement_form.home_date }}">
-        <input type="hidden" name="range" value="{{ measurement_form.chart_range }}">
+        <input type="hidden" name="home_date" value="{{ measurement_form.workspace.day }}">
+        {{ workspace_fields(measurement_form.workspace) }}
       {% endif %}
       <input type="hidden" name="loaded_date" value="{{ measurement_form.values.get('loaded_date', '') }}">
       <input type="hidden" name="loaded_version" value="{{ measurement_form.values.get('loaded_version', '') }}">
       <input type="hidden" name="weight_unit" value="{{ measurement_form.values.get('weight_unit', '') }}">
       <input type="hidden" name="sex" value="{{ measurement_form.values.get('sex', '') }}">
+      {% if measurement_form.workspace is not none %}
+        <input type="hidden" name="date" value="{{ measurement_form.values.get('date', '') }}">
+        {% if measurement_form.errors.get('date') %}<p class="error" id="measurement-date-error" role="alert">{{ measurement_form.errors['date'] }} Select a day in the calendar before saving.</p>{% endif %}
+      {% else %}
       <div class="field measurement-date">
         <label for="measurement-date">Date</label>
         <input id="measurement-date" name="date" type="date" max="{{ today }}" value="{{ measurement_form.values.get('date', '') }}" required {% if measurement_form.errors.get('date') %}aria-invalid="true" aria-describedby="measurement-date-error"{% endif %}>
         {% if measurement_form.errors.get('date') %}<p class="error" id="measurement-date-error">{{ measurement_form.errors['date'] }}</p>{% endif %}
       </div>
+      {% endif %}
       {% if settings.sex %}
         <p class="help">Take up to three readings per site. You can save a partial session.</p>
       {% else %}
@@ -45,5 +51,5 @@
           </div>
         </fieldset>
       {% endfor %}
-      <button type="submit" {% if not settings.sex %}disabled{% endif %}>Save measurements</button>
+      <button type="submit" {% if measurement_form.workspace %}formaction="/measurements#measurement-editor"{% endif %} {% if not settings.sex %}disabled{% endif %}>Save measurements</button>
     </form>

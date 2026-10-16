@@ -5,7 +5,7 @@
     <h2 id="chart">Weight</h2>
     <div class="range" role="group" aria-label="Chart range">
       {% for option in ranges %}
-        <a href="/?range={{ option }}{% if link_date %}&amp;date={{ link_date }}{% endif %}#chart"
+        <a href="{{ workspace.url(chart_range=option, fragment='chart') }}"
           {% if option == chart.range %}aria-current="true"{% endif %}>{{ range_labels[option] }}</a>
       {% endfor %}
     </div>
@@ -14,7 +14,7 @@
     <p class="chart-empty">
       {% if chart.has_weigh_ins %}
         No weigh-ins in the last {{ range_labels[chart.range] }}.
-        <a href="/?range=all{% if link_date %}&amp;date={{ link_date }}{% endif %}#chart">Show all</a>
+        <a href="{{ workspace.url(chart_range='all', fragment='chart') }}">Show all</a>
       {% else %}
         No weigh-ins yet.
       {% endif %}

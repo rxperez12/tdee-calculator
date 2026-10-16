@@ -1,10 +1,11 @@
 import json
 import re
 from datetime import date, timedelta
+from html import unescape
 
 import pytest
 from sqlalchemy.orm import Session
-from test_app import save
+from test_app import assert_home_url, page_link, save
 from test_dashboard import linear_logs
 
 from tdee_calculator.calc import ActivityLevel, DayLog, Sex
@@ -109,7 +110,7 @@ def test_daily_table_empty_range_and_old_weigh_in_with_recent_calories(client, c
     seed(config, [DayLog(TODAY, None, 2100)])
     page = client.get("/?range=4w&date=2026-10-01").text
     assert "No weigh-ins in the last 4 weeks" in page
-    assert 'href="/?range=all&amp;date=2026-10-01#chart"' in page
+    assert_home_url(page_link(page, "All"), day="2026-10-01", chart_range="all")
     assert "Show daily log as a table" in page
     assert 'class="number">2100</td>' in page
 
@@ -258,10 +259,12 @@ def test_range_selects_chart_window(client, config, query, start):
 def test_range_links(client, config):
     seed(config, linear_logs())
     page = client.get("/?range=4w").text
-    assert re.search(r'href="/\?range=4w#chart"\s+aria-current="true"', page)
-    assert 'href="/?range=all#chart"' in page
+    selected = re.search(r'href="([^"]+)"\s+aria-current="true">4 weeks', page)
+    assert selected is not None
+    assert_home_url(unescape(selected[1]), chart_range="4w")
+    assert_home_url(page_link(page, "All"), chart_range="all")
     edit = client.get("/?date=2026-10-01").text
-    assert 'href="/?range=all&amp;date=2026-10-01#chart"' in edit
+    assert_home_url(page_link(edit, "All"), day="2026-10-01", chart_range="all")
 
 
 def test_caption_and_json_escaping(client, config):
@@ -283,7 +286,7 @@ def test_range_without_weigh_ins(client, config):
     seed(config, [DayLog(TODAY - timedelta(days=120), 80.0, None)])
     page = client.get("/").text
     assert "No weigh-ins in the last 3 months." in page
-    assert 'href="/?range=all#chart">Show all' in page
+    assert_home_url(page_link(page, "Show all"), chart_range="all")
     assert "80.0 kg" in section(page, "trend-heading")
     assert 'id="weight-chart"' in client.get("/?range=all").text
 

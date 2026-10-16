@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session
 
 from tdee_calculator import measurements
 from tdee_calculator.calc import Site, navy_measurement_sites
-from tdee_calculator.dashboard import Range
 from tdee_calculator.edits import row_version
 from tdee_calculator.measurement_form import READING_LIMITS, SITE_LABELS
+from tdee_calculator.routes.calendar_context import Workspace
 from tdee_calculator.settings import Settings
 from tdee_calculator.units import format_length, length_unit_for
 
@@ -38,23 +38,12 @@ def measurement_values(
 def measurement_url(
     day: Date,
     *,
-    home_date: Date | None = None,
-    chart_range: Range = "3m",
     saved: bool = False,
 ) -> str:
-    if home_date is None:
-        params = {"date": day.isoformat()}
-        if saved:
-            params["saved"] = day.isoformat()
-        return "/measurements?" + urlencode(params)
-    params = {
-        "date": home_date.isoformat(),
-        "range": chart_range,
-        "circumference_date": day.isoformat(),
-    }
+    params = {"date": day.isoformat()}
     if saved:
-        params["circumference_saved"] = day.isoformat()
-    return "/?" + urlencode(params)
+        params["saved"] = day.isoformat()
+    return "/measurements?" + urlencode(params)
 
 
 @dataclass(frozen=True)
@@ -70,8 +59,7 @@ class MeasurementFormContext:
     stale_date: Date | None
     edit_url: str | None
     reload_url: str | None
-    home_date: Date | None
-    chart_range: Range
+    workspace: Workspace | None
 
 
 def build_form_context(
@@ -83,8 +71,7 @@ def build_form_context(
     notice: str | None = None,
     conflict_date: Date | None = None,
     stale_date: Date | None = None,
-    home_date: Date | None = None,
-    chart_range: Range = "3m",
+    workspace: Workspace | None = None,
 ) -> MeasurementFormContext:
     unit = length_unit_for(settings.weight_unit)
     return MeasurementFormContext(
@@ -102,16 +89,19 @@ def build_form_context(
         notice=notice,
         conflict_date=conflict_date,
         stale_date=stale_date,
-        edit_url=measurement_url(
-            conflict_date, home_date=home_date, chart_range=chart_range
+        edit_url=workspace.url(
+            day=conflict_date, month=workspace.month, measurements_open=True
         )
+        if workspace is not None and conflict_date is not None
+        else measurement_url(conflict_date)
         if conflict_date is not None
         else None,
-        reload_url=measurement_url(
-            stale_date, home_date=home_date, chart_range=chart_range
+        reload_url=workspace.url(
+            day=stale_date, month=workspace.month, measurements_open=True
         )
+        if workspace is not None and stale_date is not None
+        else measurement_url(stale_date)
         if stale_date is not None
         else None,
-        home_date=home_date,
-        chart_range=chart_range,
+        workspace=workspace,
     )

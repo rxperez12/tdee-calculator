@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date as Date
 
 from fastapi import APIRouter, Request
@@ -7,12 +8,12 @@ from sqlalchemy.orm import Session
 from tdee_calculator import clock, measurements
 from tdee_calculator.body_fat import build_summary
 from tdee_calculator.calc import navy_measurement_sites
-from tdee_calculator.dashboard import parse_range
 from tdee_calculator.edits import edit_conflict, row_version
 from tdee_calculator.measurement_form import (
     MeasurementFormErrors,
     parse_measurement_form,
 )
+from tdee_calculator.routes.calendar_context import WorkspaceDependency
 from tdee_calculator.routes.measurement_context import (
     build_form_context,
     measurement_url,
@@ -94,13 +95,11 @@ def save(
     session: SessionDependency,
     settings: SettingsDependency,
     values: FormDependency,
+    workspace: WorkspaceDependency,
 ) -> HTMLResponse | RedirectResponse:
-    home_date = (
-        requested_day(values.get("home_date"), clock.today())
-        if values.get("source") == "home"
-        else None
-    )
-    chart_range = parse_range(values.get("range"))
+    from_home = values.get("source") == "home"
+    if from_home:
+        workspace = replace(workspace, measurements_open=True)
 
     def render_failure(
         form_values: dict[str, str],
@@ -111,7 +110,7 @@ def save(
         stale_date: Date | None = None,
         notice: str | None = None,
     ) -> HTMLResponse:
-        if home_date is None:
+        if not from_home:
             return render_measurements(
                 request,
                 session,
@@ -126,10 +125,9 @@ def save(
         return render_home(
             request,
             session,
-            entry_values(session, home_date, settings),
+            entry_values(session, workspace.day, settings),
             settings,
             status_code=status_code,
-            chart_range=chart_range,
             measurement_form=build_form_context(
                 settings,
                 form_values,
@@ -137,9 +135,9 @@ def save(
                 conflict_date=conflict_date,
                 stale_date=stale_date,
                 notice=notice,
-                home_date=home_date,
-                chart_range=chart_range,
+                workspace=workspace,
             ),
+            workspace=workspace,
         )
 
     try:
@@ -148,7 +146,7 @@ def save(
         day = None
     if not weight_unit_matches(values, settings):
         return render_failure(
-            measurement_values(session, day or clock.today(), settings),
+            measurement_values(session, day or workspace.day, settings),
             status_code=409,
             notice=STALE_UNITS_NOTICE,
         )
@@ -162,7 +160,7 @@ def save(
         )
     if values.get("sex") != settings.sex.value:
         return render_failure(
-            measurement_values(session, day or clock.today(), settings),
+            measurement_values(session, day or workspace.day, settings),
             status_code=409,
             notice=(
                 "Your sex setting changed since this page loaded. Nothing was saved. "
@@ -172,7 +170,7 @@ def save(
     current = measurements.get_session(session, day) if day is not None else None
     result = parse_measurement_form(
         values,
-        clock.today(),
+        workspace.today,
         settings.weight_unit,
         current,
         sites=navy_measurement_sites(settings.sex),
@@ -200,9 +198,11 @@ def save(
             stale_date=result.date if conflict == "stale" else None,
         )
     return RedirectResponse(
-        measurement_url(
-            result.date, home_date=home_date, chart_range=chart_range, saved=True
-        ),
+        workspace.for_day(result.date).url(
+            measurements_open=True, measurement_saved=True
+        )
+        if from_home
+        else measurement_url(result.date, saved=True),
         status_code=303,
     )
 

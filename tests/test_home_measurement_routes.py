@@ -3,7 +3,7 @@ from datetime import date, datetime
 from html import escape, unescape
 
 import pytest
-from test_app import FormInputs, stored_entries
+from test_app import FormInputs, assert_home_url, page_link, stored_entries
 from test_dashboard import linear_logs
 from test_dashboard_routes import chart_data, section, seed
 from test_measurement_routes import readings, save, settings
@@ -30,9 +30,12 @@ def measurement_section(html):
     return html.split('<section class="home-measurements"')[1].split("</section>")[0]
 
 
-def assert_home_feedback(response, *, daily_day="2026-10-02", chart_range="4w"):
+def assert_home_feedback(response, *, daily_day="2026-10-08", chart_range="4w"):
     assert "<h1>Today</h1>" in response.text
-    assert 'class="circumference-log" role="region"' in response.text
+    assert re.search(
+        r'id="measurement-editor"[^>]*role="region"[^>]*>\s*<h3', response.text
+    )
+    assert not re.search(r'id="measurement-editor"[^>]*\bhidden\b', response.text)
     daily = FormInputs(response.text, action="/entries").values
     assert daily["entry_date"] == daily_day
     assert daily["range"] == chart_range
@@ -46,15 +49,14 @@ def test_home_save_keeps_daily_context_and_stores_cm(client, config, weight, tex
     settings(config, weight=weight)
     values = home_form(client)
     assert values["source"] == "home"
-    assert values["home_date"] == "2026-10-02"
+    assert values["home_date"] == "2026-10-08"
     response = save(client, values, neck_1=text)
     assert response.status_code == 303
-    assert response.headers["location"] == (
-        "/?date=2026-10-02&range=4w&circumference_date=2026-10-08&circumference_saved=2026-10-08"
-    )
+    assert_home_url(response.headers["location"], chart_range="4w")
+    assert "circumference_saved=2026-10-08" in response.headers["location"]
     page = client.get(response.headers["location"])
     assert_home_feedback(page)
-    assert "Saved measurements for Thu 8 Oct" in measurement_section(page.text)
+    assert "Saved measurements for Thu 8 Oct" in page.text
     assert "Saved Thu 8 Oct" not in page.text
     assert readings(config) == [("neck", 1, pytest.approx(39.37, abs=1e-9))]
     assert stored_entries(config) == []
@@ -76,7 +78,7 @@ def test_home_validation_keeps_values_without_saving(client, config, changes):
     assert stored_entries(config) == []
 
 
-def test_home_overwrite_guard_links_to_home_and_keeps_both_dates(client, config):
+def test_home_overwrite_guard_links_to_selected_day(client, config):
     assert (
         save(client, home_form(client, day="2026-10-07"), neck_1="35").status_code
         == 303
@@ -84,10 +86,11 @@ def test_home_overwrite_guard_links_to_home_and_keeps_both_dates(client, config)
     assert save(client, home_form(client), neck_1="37").status_code == 303
     response = save(client, home_form(client), date="2026-10-07", neck_1="40")
     assert response.status_code == 409
-    assert_home_feedback(response)
-    assert (
-        'href="/?date=2026-10-02&amp;range=4w&amp;circumference_date=2026-10-07"'
-        in response.text
+    assert_home_feedback(response, daily_day="2026-10-07")
+    assert_home_url(
+        page_link(response.text, "Edit this session"),
+        day="2026-10-07",
+        chart_range="4w",
     )
     assert "Edit this session" in response.text
     assert readings(config) == [("neck", 1, 35), ("neck", 1, 37)]
@@ -104,10 +107,7 @@ def test_home_stale_and_deleted_sessions_are_not_overwritten(
     assert response.status_code == 409
     assert_home_feedback(response)
     assert "Reload this session" in response.text
-    assert (
-        'href="/?date=2026-10-02&amp;range=4w&amp;circumference_date=2026-10-08"'
-        in response.text
-    )
+    assert_home_url(page_link(response.text, "Reload this session"), chart_range="4w")
     assert readings(config) == [("neck", 1, 36)]
     client.post("/measurements/2026-10-08/delete")
     assert save(client, stale, neck_1="38").status_code == 409
@@ -130,7 +130,7 @@ def test_home_stale_units_reload_current_readings(client, config):
     response = save(client, stale, neck_1="73.123456")
     assert response.status_code == 409
     assert_home_feedback(response)
-    assert "Your units changed" in measurement_section(response.text)
+    assert "Your units changed" in response.text
     returned = FormInputs(response.text, action="/measurements").values
     assert returned["neck_1"] == "15.5"
     assert returned["weight_unit"] == "lb"
@@ -176,16 +176,15 @@ def test_home_context_is_normalized_and_cross_origin_save_refused(client, config
     response = save(
         client, values, neck_1="35", home_date="https://example.com", range="bad"
     )
-    assert response.headers["location"] == (
-        "/?date=2026-10-08&range=3m&circumference_date=2026-10-08&circumference_saved=2026-10-08"
-    )
+    assert_home_url(response.headers["location"])
 
 
 def test_home_empty_default_and_explicit_date_loading(client):
     page = client.get("/").text
     assert "No measurements yet. Log your first session." in page
-    assert 'action="/measurements"' not in page
-    assert "autofocus" in page
+    assert page.count('action="/measurements"') == 1
+    assert re.search(r'id="measurement-editor"[^>]*\bhidden\b', page)
+    assert "autofocus" not in page
     assert "Edit latest" not in page
     for day in ("", "bad", "2026-10-09"):
         response = client.get("/", params={"circumference_date": day})
@@ -209,10 +208,7 @@ def test_partial_summary_and_latest_edit_keep_distinct_dates(client, config):
     assert 'datetime="2026-10-15"' in section
     assert "35.0 cm" in section
     assert "39.4 cm" not in section
-    assert (
-        'href="/?date=2026-10-02&amp;range=all&amp;circumference_date=2026-10-08"'
-        in section
-    )
+    assert_home_url(page_link(section, "Edit latest"), chart_range="all")
     assert 'id="chart"' not in response.text
     loaded = home_form(client)
     assert loaded["neck_1"] == "35.0"
@@ -242,20 +238,21 @@ def test_daily_failures_keep_measurements_collapsed_and_ids_unique(client, statu
         values["weight"] = "bad"
     response = client.post("/entries", data=values)
     assert response.status_code == status
-    assert 'action="/measurements"' not in response.text
+    assert re.search(r'id="measurement-editor"[^>]*\bhidden\b', response.text)
     assert "35.0 cm" in measurement_section(response.text)
     ids = re.findall(r'\bid="([^"]+)"', response.text)
     assert len(ids) == len(set(ids))
     forms = re.findall(r"<form\b.*?</form>", response.text, re.DOTALL)
-    assert len(forms) == 2
+    assert len(forms) == 5
     assert all(form.count("<form") == 1 for form in forms)
-    assert "autofocus" in response.text
+    assert "autofocus" not in response.text
 
 
 def test_measurement_date_error_is_associated_with_its_control(client):
     response = save(client, home_form(client), date="bad", neck_1="35")
     inputs = FormInputs(response.text, action="/measurements")
-    assert inputs.inputs["date"]["aria-describedby"] == "measurement-date-error"
+    assert inputs.inputs["date"]["type"] == "hidden"
+    assert FormInputs(response.text, action="/").values["date"] == "2026-10-08"
     assert 'id="measurement-date-error"' in response.text
     assert "Enter a valid date." in unescape(response.text)
 
@@ -342,27 +339,33 @@ def test_measurements_do_not_change_daily_records_or_dashboard_results(client, c
     assert "2,000 kcal today" in section(after, "hero-heading")
 
 
-def test_daily_navigation_resets_measurement_form_only(client, config):
+def test_daily_navigation_keeps_workspace_and_selects_both_records(client, config):
     seed(config, linear_logs())
     save(client, home_form(client, day="2026-10-07"), neck_1="35")
     page = client.get(
         "/?date=2026-10-02&range=4w&circumference_date=2026-10-07&circumference_saved=2026-10-07"
     ).text
-    assert 'href="/?range=all&amp;date=2026-10-02#chart"' in page
-    next_page = client.get("/?range=all&date=2026-10-02#chart").text
-    assert 'action="/measurements"' not in next_page
-    assert FormInputs(next_page, action="/entries").values["entry_date"] == "2026-10-02"
+    next_page = client.get(page_link(page, "All")).text
+    assert FormInputs(next_page, action="/entries").values["entry_date"] == "2026-10-07"
+    assert FormInputs(next_page, action="/measurements").values["date"] == "2026-10-07"
     selector = FormInputs(page, action="/").values
-    assert selector == {"date": "2026-10-02", "range": "4w"}
+    assert selector == {
+        "date": "2026-10-07",
+        "range": "4w",
+        "selection": "1",
+        "stat": "calories",
+        "measurements": "open",
+    }
     next_page = client.get("/", params={**selector, "date": "2026-10-01"}).text
-    assert 'action="/measurements"' not in next_page
+    assert FormInputs(next_page, action="/measurements").values["date"] == "2026-10-01"
     assert FormInputs(next_page, action="/entries").values["entry_date"] == "2026-10-01"
 
 
 def test_home_log_link_loads_today_and_blank_new_dates(client):
     save(client, home_form(client), neck_1="35")
     page = client.get("/?date=2026-10-02&range=all").text
-    url = "/?date=2026-10-02&range=all&circumference_date=2026-10-08"
+    url = page_link(page, "Log")
+    assert_home_url(url, chart_range="all")
     assert f'href="{escape(url)}" aria-label="Log measurements">Log</a>' in page
     assert (
         FormInputs(client.get(url).text, action="/measurements").values["neck_1"]
@@ -376,7 +379,7 @@ def test_home_log_link_loads_today_and_blank_new_dates(client):
 def test_home_actions_use_one_form_and_close_preserves_daily_context(client, config):
     save(client, home_form(client, day="2026-10-07"), neck_1="35")
     page = client.get("/?date=2026-10-02&range=all").text
-    assert 'action="/measurements"' not in page
+    assert re.search(r'id="measurement-editor"[^>]*\bhidden\b', page)
     assert '<details class="circumference-log"' not in page
     edit_url = re.search(r'href="([^"]+)">Edit latest</a>', page)
     assert edit_url is not None
@@ -389,12 +392,13 @@ def test_home_actions_use_one_form_and_close_preserves_daily_context(client, con
     assert save(client, values, neck_1="36").status_code == 303
     assert readings(config) == [("neck", 1, 36)]
     close_url = re.search(
-        r'href="([^"]+)" aria-label="Close measurement form">Close</a>', editing.text
+        r'href="([^"]+)"[^>]*aria-label="Close measurement form">Close</a>',
+        editing.text,
     )
     assert close_url is not None
     closed = client.get(unescape(close_url[1])).text
-    assert 'action="/measurements"' not in closed
-    assert FormInputs(closed, action="/entries").values["entry_date"] == "2026-10-02"
+    assert re.search(r'id="measurement-editor"[^>]*\bhidden\b', closed)
+    assert FormInputs(closed, action="/entries").values["entry_date"] == "2026-10-07"
     assert FormInputs(closed, action="/entries").values["range"] == "all"
     assert "Saved measurements" not in closed
     log_url = re.search(r'href="([^"]+)" aria-label="Log measurements">Log</a>', closed)

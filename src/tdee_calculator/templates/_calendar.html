@@ -1,0 +1,86 @@
+{% from "_workspace_fields.html" import workspace_fields %}
+<section id="logging-calendar" aria-labelledby="logging-heading">
+  <div class="workspace-heading">
+    <h2 id="logging-heading">Your daily log</h2>
+    <div class="logging-streaks" aria-label="Current logging streaks">
+      {% for label, key, streak in [('Weight streak', 'weight', calendar.weight_streak), ('Calorie streak', 'calories', calendar.calorie_streak)] %}
+      <p>{{ label }} <strong data-streak="{{ key }}">{{ streak.count }}</strong> {{ 'day' if streak.count == 1 else 'days' }}{% if streak.through %}<span>through {{ streak.through | short_date(today) }}</span>{% endif %}</p>
+      {% endfor %}
+    </div>
+  </div>
+  <p class="help">Current streaks as of {{ today | short_date(today) }}. An unfinished today keeps yesterday's run.</p>
+  <details class="calendar-options">
+    <summary>Choose stats <span class="muted">{{ workspace.stats | length }} shown</span></summary>
+    <form method="get" action="/#logging-calendar" class="calendar-stat-form">
+      <input type="hidden" name="date" value="{{ workspace.day }}">
+      {{ workspace_fields(workspace, include_stats=false) }}
+      <fieldset><legend>Show recorded values</legend>
+        {% for option in calendar.options %}
+          <label><input type="checkbox" name="stat" value="{{ option.key }}" {% if option.key in workspace.stats %}checked{% endif %}>{{ option.label }} ({{ option.unit }})</label>
+        {% endfor %}
+      </fieldset>
+      <p class="help">Navy estimates use your current sex and height from <a href="/settings">Settings</a>. Measurement dates stay separate from daily logging.</p>
+      <button type="submit">Apply stats</button>
+    </form>
+  </details>
+  <div class="logging-workspace">
+    <div class="calendar-month">
+      <div class="calendar-month-heading">
+        <h3>{{ calendar.month.strftime('%B %Y') }}</h3>
+        <a href="{{ workspace.url(day=today, fragment='selected-day') }}">Today</a>
+      </div>
+      <div class="calendar-navigation">
+        {% if calendar.previous %}<a href="{{ workspace.url(month=calendar.previous, fragment='logging-calendar') }}">Previous month</a>{% else %}<span></span>{% endif %}
+        {% if calendar.next %}<a href="{{ workspace.url(month=calendar.next, fragment='logging-calendar') }}">Next month</a>{% endif %}
+      </div>
+      <form method="get" action="/#logging-calendar" class="calendar-month-picker">
+        <input type="hidden" name="date" value="{{ workspace.day }}">
+        {{ workspace_fields(workspace, include_month=false) }}
+        <label for="calendar-month">Month</label>
+        <input id="calendar-month" name="month" type="month" value="{{ workspace.month.isoformat()[:7] }}" required>
+        <button type="submit">Show month</button>
+      </form>
+      <table class="logging-month">
+        <caption class="visually-hidden">{{ calendar.month.strftime('%B %Y') }} daily logs. Select a date to load its editor.</caption>
+        <thead><tr>{% for name in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}<th scope="col">{{ name }}</th>{% endfor %}</tr></thead>
+        <tbody>{% for week in calendar.weeks %}<tr>
+          {% for day in week %}
+            {% if day %}
+            <td data-date="{{ day.date }}" class="calendar-day status-{{ day.status }}{% if day.date == workspace.day %} is-selected{% endif %}{% if day.date == today %} is-today{% endif %}">
+              {% if day.date <= today %}<a class="calendar-date" href="{{ workspace.url(day=day.date) }}" aria-label="{{ day.date.strftime('%A %-d %B %Y') }} · {{ day.label }}" {% if day.date == workspace.day %}aria-current="date"{% endif %}>{{ day.date.day }}</a>{% else %}<span class="calendar-date">{{ day.date.day }}</span>{% endif %}
+              <span class="visually-hidden">{{ day.label }}{% if day.date == today %} · Today{% endif %}</span>
+              {% if day.date <= today %}<span class="daily-presence" aria-label="Weight {{ 'recorded' if day.has_weight else 'not recorded' }}, calories {{ 'recorded' if day.has_calories else 'not recorded' }}"><span class="{% if day.has_weight %}recorded{% endif %}">{{ '✓' if day.has_weight else '·' }}W</span> <span class="{% if day.has_calories %}recorded{% endif %}">{{ '✓' if day.has_calories else '·' }}C</span></span>{% endif %}
+              <div class="calendar-values">{% for value in day.values %}{% if value.value is not none %}<span title="{{ value.label }}">{{ {'weight': 'Wt', 'calories': 'Cal', 'neck': 'Neck', 'abdomen': 'Abd', 'waist': 'Waist', 'hip': 'Hips', 'navy': 'BF'}[value.key] }} {{ '≈' if value.estimated else '✓' }} {{ value.value }} {{ value.unit }}</span>{% endif %}{% endfor %}</div>
+              {% if day.has_measurements %}<a class="session-marker" href="{{ workspace.url(day=day.date, measurements_open=true) }}" aria-label="Measurements {{ day.date }}">Tape</a>{% endif %}
+            </td>
+            {% else %}<td class="calendar-padding"></td>{% endif %}
+          {% endfor %}
+        </tr>{% endfor %}</tbody>
+      </table>
+      <p class="calendar-legend help">✓W weight · ✓C calories · Tape measurement session. Outlined day is selected; underlined day is today.</p>
+      {% if not workspace.stats %}<p class="help">No values selected. Choose stats to show values; logging is still available.</p>{% endif %}
+      <details class="incomplete-days">
+        <summary>Incomplete past days <span class="muted">{{ calendar.incomplete | length }} this month</span></summary>
+        {% if calendar.incomplete %}<ul>{% for day in calendar.incomplete %}<li><a href="{{ workspace.url(day=day.date) }}">{{ day.date | short_date(today) }}</a> · Missing {{ day.missing }}</li>{% endfor %}</ul>
+        {% elif calendar.tracking_start %}<p>No incomplete past days in this month.</p>{% else %}<p>Log your first weight or calorie total to begin tracking completeness.</p>{% endif %}
+      </details>
+    </div>
+    <section id="selected-day" class="selected-day" aria-labelledby="selected-day-heading" tabindex="-1">
+      <h3 id="selected-day-heading">{{ 'Today' if workspace.day == today else 'Editing ' ~ workspace.day.strftime('%-d %b %Y') }}</h3>
+      {% if saved %}<p class="notice" role="status">Saved {{ saved | short_date(today) }}</p>{% endif %}
+      {% if notice %}<p class="notice" role="alert">{{ notice }}</p>{% endif %}
+      <p class="help"><time datetime="{{ workspace.day }}">{{ workspace.day.strftime('%A %-d %B %Y') }}</time> · {{ calendar.selected.label }}</p>
+      {% if workspace.day.year != workspace.month.year or workspace.day.month != workspace.month.month %}<p class="help">This editor is outside the displayed month. <a href="{{ workspace.url(day=workspace.day) }}">Show selected month</a></p>{% endif %}
+      {% include "_log_form.html" %}
+      {% if calendar.selected.values %}<details class="selected-stat-details" open><summary>Selected-day stats</summary><dl>{% for value in calendar.selected.values %}<div><dt>{{ value.label }}</dt><dd>{% if value.value is not none %}{{ 'Estimate ' if value.estimated else '✓ ' }}{{ value.value }} {{ value.unit }}{% else %}{{ value.reason }}{% endif %}</dd></div>{% endfor %}</dl></details>{% endif %}
+      <div class="measurement-editor">
+        <div class="measurement-header"><h3>Measurements</h3><a href="{{ workspace.url(measurements_open=not circumference_open) }}" aria-expanded="{{ 'true' if circumference_open else 'false' }}" aria-controls="measurement-editor" aria-label="{{ 'Close measurement form' if circumference_open else 'Open measurement form' }}">{{ 'Close' if circumference_open else 'Log / edit' }}</a></div>
+        <div id="measurement-editor" class="circumference-log" role="region" aria-labelledby="circumference-log-heading" {% if not circumference_open %}hidden{% endif %}>
+          <h3 id="circumference-log-heading">{{ 'Edit measurements' if measurement_form.values.get('loaded_version') else 'Log measurements' }}</h3>
+          {% include "_measurement_form.html" %}
+          <p class="help"><a href="/measurements#how-to-measure">How to measure</a></p>
+        </div>
+      </div>
+    </section>
+  </div>
+</section>

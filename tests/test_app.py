@@ -1,6 +1,8 @@
 import re
 from datetime import date, timedelta
+from html import unescape
 from html.parser import HTMLParser
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -58,15 +60,43 @@ class FormInputs(HTMLParser):
             self.in_form = False
 
 
+def page_link(html: str, label: str) -> str:
+    match = re.search(r'href="([^"]+)"[^>]*>' + re.escape(label) + r"</a>", html)
+    assert match is not None
+    return unescape(match[1])
+
+
+def assert_home_url(
+    url: str, *, day="2026-10-08", chart_range="3m", month="2026-10"
+) -> None:
+    parsed = urlsplit(url)
+    assert parsed.path == "/"
+    values = parse_qs(parsed.query)
+    assert values["date"] == [day]
+    assert values["range"] == [chart_range]
+    assert values["month"] == [month]
+    assert values["selection"] == ["1"]
+
+
+def assert_entry_fields(html: str, expected: dict[str, str]) -> None:
+    actual = FormInputs(html, action="/entries").values
+    assert {key: actual[key] for key in expected} == expected
+
+
 def test_date_selector_loads_day_separately_from_save(client, config) -> None:
     save(client, form_data(entry_date="2026-10-07", calories=""))
     page = client.get("/?range=4w").text
     selector = FormInputs(page, action="/")
-    assert selector.values == {"date": "2026-10-08", "range": "4w"}
+    assert selector.values == {
+        "date": "2026-10-08",
+        "range": "4w",
+        "selection": "1",
+        "stat": "calories",
+    }
     assert "onchange" not in selector.inputs["date"]
     assert selector.inputs["date"]["max"] == "2026-10-08"
     assert "required" in selector.inputs["date"]
-    assert "Load day</button>" not in page
+    assert "Load day</button>" in page
     assert 'class="logging-day"' not in page
     assert re.search(r'<script src="/static/date-selector\.js\?v=\w+" defer>', page)
     selector.values["date"] = "2026-10-07"
@@ -77,16 +107,18 @@ def test_date_selector_loads_day_separately_from_save(client, config) -> None:
     assert entry.values["loaded_date"] == "2026-10-07"
     assert entry.values["weight"] == "80.2"
     assert FormInputs(loaded.text, action="/").values["date"] == "2026-10-07"
-    assert [(form["method"], form["action"]) for form in entry.forms] == [
-        ("get", "/"),
-        ("post", "/entries"),
-    ]
+    assert [
+        (form["method"], form["action"])
+        for form in entry.forms
+        if form["method"] == "post"
+    ] == [("post", "/entries"), ("post", "/measurements")]
     entry.values["calories"] = "2100"
     response = save(client, entry.values)
     assert response.status_code == 303
-    assert response.headers["location"] == (
-        "/?date=2026-10-07&range=4w&saved=2026-10-07"
-    )
+    assert_home_url(response.headers["location"], day="2026-10-07", chart_range="4w")
+    assert parse_qs(urlsplit(response.headers["location"]).query)["saved"] == [
+        "2026-10-07"
+    ]
     assert stored_entries(config) == [
         ("2026-10-07", pytest.approx(80.25, abs=1e-9), 2100, "manual")
     ]
@@ -126,7 +158,7 @@ def save(client, data=None, headers=None):
     )
 
 
-def test_home_prefills_today_and_focuses_weight(client) -> None:
+def test_home_prefills_today_without_scrolling_past_summary(client) -> None:
     response = client.get("/")
     values = FormInputs(response.text, action="/entries").values
     assert values == {
@@ -138,17 +170,21 @@ def test_home_prefills_today_and_focuses_weight(client) -> None:
         "weight": "",
         "calories": "",
         "range": "3m",
+        "month": "2026-10",
+        "selection": "1",
+        "stat": "calories",
     }
     assert 'max="2026-10-08"' in response.text
-    assert "autofocus" in response.text
+    assert "autofocus" not in response.text
 
 
 def test_save_redirects_and_persists(client, config) -> None:
     response = save(client)
     assert response.status_code == 303
-    assert response.headers["location"] == (
-        "/?date=2026-10-08&range=3m&saved=2026-10-08"
-    )
+    assert_home_url(response.headers["location"])
+    assert parse_qs(urlsplit(response.headers["location"]).query)["saved"] == [
+        "2026-10-08"
+    ]
     assert stored_entries(config) == [
         ("2026-10-08", pytest.approx(80.25, abs=1e-9), 2000, "manual")
     ]
@@ -220,7 +256,7 @@ def test_stale_form_cannot_overwrite_newer_save(client, config) -> None:
 
     assert response.status_code == 409
     assert "8 Oct changed since this page loaded" in response.text
-    assert 'href="/?date=2026-10-08&amp;range=3m"' in response.text
+    assert_home_url(page_link(response.text, "reload it"))
     values = FormInputs(response.text, action="/entries").values
     assert values == stale_tab
     assert save(client, values).status_code == 409
@@ -261,9 +297,7 @@ def test_invalid_save_preserves_values_and_database(client, config, existing) ->
     assert response.status_code == 422
     assert "Weight must be between 20.0 and 400.0 kg" in response.text
     assert "Enter a whole number for calories" in response.text
-    assert FormInputs(response.text, action="/entries").values == form_data(
-        weight="8000", calories="2000.5"
-    )
+    assert_entry_fields(response.text, form_data(weight="8000", calories="2000.5"))
     assert stored_entries(config) == before
 
 
@@ -283,8 +317,8 @@ def test_overwrite_guard_preserves_existing_entry(client, config, loaded_date) -
     response = save(client, data)
     assert response.status_code == 409
     assert "Thu 8 Oct already has saved data" in response.text
-    assert 'href="/?date=2026-10-08&amp;range=3m"' in response.text
-    assert FormInputs(response.text, action="/entries").values == data
+    assert_home_url(page_link(response.text, "Load this day"))
+    assert_entry_fields(response.text, data)
     assert stored_entries(config) == [
         ("2026-10-08", pytest.approx(80.25, abs=1e-9), 2000, "manual")
     ]
@@ -342,15 +376,13 @@ def test_edit_prefills_selected_date(client) -> None:
     expected = form_data(entry_date="2026-10-07")
     expected["weight"] = "80.2"
     expected["loaded_version"] = "2026-10-08T08:00:00"
-    assert FormInputs(response.text, action="/entries").values == expected
+    assert_entry_fields(response.text, expected)
 
 
 def test_selecting_unlogged_date_shows_blank_form(client) -> None:
     save(client)
     response = client.get("/?date=2026-10-07")
-    assert FormInputs(response.text, action="/entries").values == form_data(
-        "2026-10-07", "", ""
-    )
+    assert_entry_fields(response.text, form_data("2026-10-07", "", ""))
 
 
 def test_recent_list_orders_limits_and_formats(client) -> None:

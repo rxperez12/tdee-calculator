@@ -68,7 +68,7 @@ and experiments are central features. Hosted accounts and a multi-user service a
 outside this roadmap; future integrations use each installation's own permissions
 or credentials where supported.
 
-**Next feature: calendar and logging completeness (P2.2).** The
+**Calendar and logging completeness (P2.2) is implemented locally.** The
 [calendar plan](plans/2026-10-16-1237-feat-calendar-logging-completeness-plan.md)
 covers a homepage calendar connected to one selected-day logging workspace,
 selectable daily values, missing-log discovery, and separate weight and calorie
@@ -100,8 +100,9 @@ P2.1 is in progress: A (tape measurements and Navy estimates) is merged into mai
 A2 (home summary, inline logging/editing, and a suggested weekly cadence) is
 merged into main. B (external results) is pending and still needs its detailed plan;
 C remains optional and pending. They do not block P2.2.
-P2.2 is planned, with implementation unstarted. The other Phase 2 milestones are
-unstarted. P2.8–P2.10 may move earlier when their
+P2.2 is implemented on its feature branch; release/merge remains separate from
+local verification. The other Phase 2 milestones are unstarted.
+P2.8–P2.10 may move earlier when their
 prerequisites and usefulness justify it. Detailed acceptance criteria belong in
 each milestone's implementation plan.
 
