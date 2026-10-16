@@ -2,13 +2,12 @@
 <section id="logging-calendar" aria-labelledby="logging-heading">
   <div class="workspace-heading">
     <h2 id="logging-heading">Your daily log</h2>
-    <div class="logging-streaks" aria-label="Current logging streaks">
+    <div class="logging-streaks" aria-label="Logging streaks">
       {% for label, key, streak in [('Weight streak', 'weight', calendar.weight_streak), ('Calorie streak', 'calories', calendar.calorie_streak)] %}
       <p>{{ label }} <strong data-streak="{{ key }}">{{ streak.count }}</strong> {{ 'day' if streak.count == 1 else 'days' }}{% if streak.through %}<span>through {{ streak.through | short_date(today) }}</span>{% endif %}</p>
       {% endfor %}
     </div>
   </div>
-  <p class="help">Current streaks as of {{ today | short_date(today) }}. An unfinished today keeps yesterday's run.</p>
   <details class="calendar-options">
     <summary>Choose stats <span class="muted">{{ workspace.stats | length }} shown</span></summary>
     <form method="get" action="/#logging-calendar" class="calendar-stat-form">

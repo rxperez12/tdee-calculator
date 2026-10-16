@@ -12,12 +12,12 @@
 
 {% block content %}
   <h1>Today</h1>
+  {% include "_calendar.html" %}
   <div class="dashboard-overview">
     {% include "_hero.html" %}
     {% if dashboard.has_entries %}{% include "_stats.html" %}{% endif %}
   </div>
   {% include "_measurement_summary.html" %}
-  {% include "_calendar.html" %}
   {% if dashboard.has_entries %}
     {% include "_chart.html" %}
   {% endif %}

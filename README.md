@@ -14,11 +14,11 @@ and startup backups in `data/`. Set `TDEE_DATA_DIR` to use another directory.
 
 ## Home dashboard
 
-Current targets, TDEE, weight trends, and the latest dated measurement summary
-appear above the daily calendar. These summaries stay current when you review an
-older day. The weight chart sits below the logging workspace.
+The daily calendar and logging editor appear first. Current targets, TDEE, weight
+trends, and the latest dated measurement summary follow, with the weight chart
+below. These summaries stay current when you review an older day.
 
-Today is selected on arrival. Choose a calendar day or use **Load day** to review
+Today is selected on arrival. Click anywhere in a calendar day or use **Load day** to review
 and correct its records. The editor sits beside the month on desktop and below
 it on mobile. Weight/calories and the expandable measurement form save
 independently; saving one never submits the other. Navigation loads saved records

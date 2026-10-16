@@ -143,7 +143,7 @@ nav {
 }
 
 /* Homepage calendar and selected-day workspace */
-#logging-calendar { margin-top: 2.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+#logging-calendar { margin-bottom: 2.5rem; }
 .workspace-heading, .calendar-month-heading, .calendar-navigation { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: .75rem; }
 .workspace-heading h2, .calendar-month-heading h3 { margin: 0; }
 .logging-streaks { display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; font-size: .85rem; }
@@ -165,15 +165,17 @@ nav {
 .calendar-month-picker button { font-size: .8rem; }
 .logging-month { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .logging-month th { font-size: .75rem; padding: .5rem 0; text-align: center; }
-.logging-month td { border: 1px solid var(--border); vertical-align: top; padding: .3rem; height: 5rem; overflow-wrap: anywhere; }
+.logging-month td { position: relative; border: 1px solid var(--border); vertical-align: top; padding: .3rem; height: 5rem; overflow-wrap: anywhere; }
 .calendar-date { display: block; font-size: .9rem; line-height: 1.6; color: var(--text); text-decoration: none; }
+a.calendar-date::after { content: ""; position: absolute; inset: 0; z-index: 1; }
+a.calendar-date:focus-visible::after { outline: 2px solid var(--link); outline-offset: -2px; }
 a.calendar-date:hover { color: var(--link); text-decoration: underline; }
 .calendar-day.is-selected { outline: 2px solid var(--link); outline-offset: -2px; background: var(--accent-soft); }
 .calendar-day.is-today .calendar-date { font-weight: 700; text-decoration: underline; text-underline-offset: .2rem; }
 .daily-presence { display: block; font-size: .65rem; white-space: nowrap; color: var(--text-muted); }
 .daily-presence .recorded { color: var(--good); font-weight: 600; }
 .calendar-values { display: grid; gap: .2rem; font-size: .65rem; font-variant-numeric: tabular-nums; padding-top: .3rem; }
-.session-marker { display: inline-block; font-size: .65rem; margin-top: .35rem; }
+.session-marker { position: relative; z-index: 2; display: inline-block; font-size: .65rem; margin-top: .35rem; }
 .calendar-day.status-future { color: var(--text-muted); }
 .calendar-day.status-before .calendar-date { color: var(--text-muted); }
 .calendar-legend { font-size: .75rem; }
